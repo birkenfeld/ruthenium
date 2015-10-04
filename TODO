@@ -1,0 +1,6 @@
+TODOs
+=====
+
+* error handling: change unwraps and "if let Ok"
+* ignore handling
+* comprehensive tests against grep, ag and ack
