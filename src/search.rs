@@ -139,6 +139,7 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
                 result.matches.push(needs_ctxt.remove(*i).0);
             }
 
+            // XXX: we should not have to do from_utf8
             if let Ok(line) = str::from_utf8(line) {
                 if let Some(idx) = regex.shortest_match(&line) {
                     let mut searchfrom = idx.1;

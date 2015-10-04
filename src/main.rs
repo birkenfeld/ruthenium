@@ -9,25 +9,27 @@ extern crate regex_dfa;
 extern crate walkdir;
 extern crate memmap;
 extern crate scoped_threadpool;
+extern crate num_cpus;
 
 mod search;
 mod display;
 mod options;
 
-use std::thread;
+use std::cmp::max;
 use std::sync::mpsc::{channel, Sender};
+use std::thread;
 use memmap::{Mmap, Protection};
 use scoped_threadpool::Pool;
 use walkdir::WalkDirIterator;
 
 use display::DisplayMode;
-use search::{create_rx, search, FileResult};
+use search::FileResult;
 use options::Opts;
 
 
 fn walk(chan: Sender<FileResult>, opts: &Opts) {
-    let mut pool = Pool::new(3);
-    let regex = create_rx(&opts);
+    let mut pool = Pool::new(max(opts.workers - 1, 1));
+    let regex = search::create_rx(&opts);
 
     let walker = walkdir::WalkDir::new(&opts.path)
         .follow_links(opts.follow_links)
@@ -42,19 +44,19 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
         true
     });
     pool.scoped(|scope| {
+        let rx = &regex;
         for entry in walker {
             if let Ok(entry) = entry {
                 // weed out directories and special files
                 if !entry.metadata().map(|m| m.is_file()).unwrap_or(false) {
                     continue;
                 }
-                let rx = regex.clone(); // XXX
+                // open and search file in one of the worker threads
                 let ch = chan.clone();
                 scope.execute(move || {
-                    // open and search file
                     if let Ok(map) = Mmap::open_path(entry.path(), Protection::Read) {
                         let buf = unsafe { map.as_slice() };
-                        let res = search(&rx, &opts, entry.path(), buf);
+                        let res = search::search(rx, &opts, entry.path(), buf);
                         ch.send(res).unwrap();
                     }
                 });

@@ -6,6 +6,7 @@
 use std::usize;
 
 use clap::{App, AppSettings, Arg};
+use num_cpus;
 
 #[derive(Clone)]
 pub struct Colors {
@@ -70,6 +71,8 @@ pub struct Opts {
     pub max_count: usize,
     pub before: usize,
     pub after: usize,
+    // others
+    pub workers: u32,
 }
 
 macro_rules! flag {
@@ -128,6 +131,7 @@ impl Opts {
             .arg(flag!(before -B --"before").takes_value(true))
             .arg(flag!(after -A --"after").takes_value(true))
             .arg(flag!(context -C --"context").takes_value(true))
+            .arg(flag!(workers / --"workers").takes_value(true))
             ;
         let m = app.get_matches();
 
@@ -193,6 +197,9 @@ impl Opts {
             after = before;
         }
 
+        let workers = m.value_of("workers").and_then(|v| v.parse().ok())
+                                           .unwrap_or(num_cpus::get()) as u32;
+
         Opts {
             // file related
             path: m.value_of("path").unwrap_or(".").into(),
@@ -221,6 +228,8 @@ impl Opts {
             max_count: maxcount,
             before: before,
             after: after,
+            // other
+            workers: workers,
         }
     }
 }
