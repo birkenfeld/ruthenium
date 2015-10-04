@@ -3,6 +3,8 @@
 // Licensed under the MIT license.
 // ---------------------------------------------------------------------------------------
 
+use std::usize;
+
 use clap::{App, AppSettings, Arg};
 
 #[derive(Clone)]
@@ -64,6 +66,7 @@ pub struct Opts {
     pub show_break: bool,
     pub show_heading: bool,
     pub ackmate_format: bool,
+    pub max_count: usize,
 }
 
 macro_rules! flag {
@@ -117,12 +120,13 @@ impl Opts {
             .arg(flag!(break / --"break"))
             .arg(flag!(nobreak / --"nobreak").conflicts_with("break"))
             .arg(flag!(ackmate / --"ackmate"))
+            .arg(flag!(maxcount -m --"max-count").takes_value(true))
             ;
         let m = app.get_matches();
 
         let depth = m.value_of("depth").and_then(|v| v.parse::<usize>().ok())
                                        .map(|v| v + 1) // 0 == immediate children
-                                       .unwrap_or(::std::usize::MAX);
+                                       .unwrap_or(usize::MAX);
 
         let mut binaries = m.is_present("searchbinary");
         let mut hidden = m.is_present("searchhidden");
@@ -171,6 +175,8 @@ impl Opts {
             heading = false;
             showbreak = false;
         }
+        let maxcount = m.value_of("maxcount").and_then(|v| v.parse().ok())
+                                             .unwrap_or(usize::MAX);
 
         Opts {
             // file related
@@ -196,6 +202,7 @@ impl Opts {
             show_break: showbreak,
             show_heading: heading,
             ackmate_format: m.is_present("ackmate"),
+            max_count: maxcount,
         }
     }
 }

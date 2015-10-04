@@ -118,6 +118,8 @@ pub fn search(chan: Sender<FileResult>, regex: &Regex, opts: &Opts,
                     if opts.only_files.is_some() {
                         // need only one match for this mode
                         break;
+                    } else if matches >= opts.max_count {
+                        break;
                     }
                 }
             }
