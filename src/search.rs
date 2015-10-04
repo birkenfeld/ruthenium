@@ -5,7 +5,6 @@
 
 use std::cmp::min;
 use std::path::Path;
-
 use regex_dfa::Program as Regex;
 
 use display::DisplayMode;

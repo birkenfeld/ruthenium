@@ -8,12 +8,17 @@ extern crate clap;
 extern crate regex_dfa;
 extern crate walkdir;
 extern crate memmap;
+extern crate scoped_threadpool;
 
 mod search;
 mod display;
 mod options;
 
+use std::thread;
+use std::sync::mpsc::channel;
 use clap::{App, Arg};
+use memmap::{Mmap, Protection};
+use scoped_threadpool::Pool;
 use walkdir::WalkDirIterator;
 
 use display::DisplayMode;
@@ -91,6 +96,7 @@ fn get_options() -> Opts {
 }
 
 fn walk<D: DisplayMode>(display: &D, opts: &Opts) {
+    let mut pool = Pool::new(3);
     let regex = create_rx(&opts.pattern, opts.literal);
 
     let mut first = true;
@@ -106,31 +112,48 @@ fn walk<D: DisplayMode>(display: &D, opts: &Opts) {
         }
         true
     });
-    for entry in walker {
-        if let Ok(entry) = entry {
-            // weed out directories and special files
-            if !entry.metadata().map(|m| m.is_file()).unwrap_or(false) {
-                continue;
-            }
-            // open and search file
-            if let Ok(map) = memmap::Mmap::open_path(entry.path(), memmap::Protection::Read) {
-                let buf = unsafe { map.as_slice() };
-                if search(entry.path(), buf, &regex, &opts, display, first) > 0 {
-                    first = false;
+    pool.scoped(|scope| {
+        for entry in walker {
+            if let Ok(entry) = entry {
+                // weed out directories and special files
+                if !entry.metadata().map(|m| m.is_file()).unwrap_or(false) {
+                    continue;
                 }
+                let dx = display.clone(); // XXX
+                let rx = regex.clone();
+                scope.execute(move || {
+                    // open and search file
+                    if let Ok(map) = Mmap::open_path(entry.path(), Protection::Read) {
+                        let buf = unsafe { map.as_slice() };
+                        if search(entry.path(), buf, &rx, &opts, &dx, first) > 0 {
+                            first = false;
+                        }
+                    }
+                });
             }
         }
-    }
+    });
+}
+
+fn run<D: DisplayMode>(display: &D, opts: options::Opts) {
+    // set up threads
+    let d = display.clone();
+    thread::spawn(move || {
+        walk(&d, &opts);
+    });
 }
 
 fn main() {
     let opts = get_options();
-
+    let (w_chan, r_chan) = channel();
     if opts.only_files == Some(true) {
-        walk(&display::FilesOnlyMode, &opts);
+        run(&display::FilesOnlyMode(w_chan), opts);
     } else if opts.only_files == Some(false) {
-        walk(&display::FilesWithoutMatchMode, &opts);
+        run(&display::FilesWithoutMatchMode(w_chan), opts);
     } else {
-        walk(&display::DefaultMode, &opts);
+        run(&display::DefaultMode(w_chan), opts);
+    }
+    while let Ok(s) = r_chan.recv() {
+        println!("{}", s);
     }
 }

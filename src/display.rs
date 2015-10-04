@@ -4,10 +4,11 @@
 // ---------------------------------------------------------------------------------------
 
 use std::borrow::Cow;
+use std::sync::mpsc::Sender;
 
 
 #[allow(unused_variables)]
-pub trait DisplayMode {
+pub trait DisplayMode: Send + Clone + 'static {
     fn beforefile(&self, fname: &Cow<str>, firstfile: bool) { }
     fn firstmatch(&self, fname: &Cow<str>, firstfile: bool) -> bool { true }
     fn linematch(&self, fname: &Cow<str>, lineno: usize, line: &str, limits: &[(usize, usize)]) { }
@@ -15,23 +16,26 @@ pub trait DisplayMode {
     fn afterfile(&self, fname: &Cow<str>, matches: usize) { }
 }
 
-pub struct DefaultMode;
+#[derive(Clone)]
+pub struct DefaultMode(pub Sender<String>);
 
 impl DisplayMode for DefaultMode {
     fn firstmatch(&self, fname: &Cow<str>, firstfile: bool) -> bool {
         if !firstfile {
-            println!("");
+            self.0.send("".into());
         }
-        println!("{}", fname);
+        // XXX into!
+        self.0.send(fname.to_owned().into_owned());
         true
     }
 
     fn linematch(&self, _fname: &Cow<str>, lineno: usize, line: &str, _limits: &[(usize, usize)]) {
-        println!("{}:{}", lineno, line);
+        self.0.send(format!("{}:{}", lineno, line));
     }
 }
 
-pub struct FilesOnlyMode;
+#[derive(Clone)]
+pub struct FilesOnlyMode(pub Sender<String>);
 
 impl DisplayMode for FilesOnlyMode {
     fn firstmatch(&self, fname: &Cow<str>, _firstfile: bool) -> bool {
@@ -40,7 +44,8 @@ impl DisplayMode for FilesOnlyMode {
     }
 }
 
-pub struct FilesWithoutMatchMode;
+#[derive(Clone)]
+pub struct FilesWithoutMatchMode(pub Sender<String>);
 
 impl DisplayMode for FilesWithoutMatchMode {
     fn afterfile(&self, fname: &Cow<str>, matches: usize) {
