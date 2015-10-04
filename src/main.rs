@@ -81,8 +81,10 @@ fn main() {
         run(&mut display::FilesOnlyMode::new(colors, true), opts);
     } else if opts.only_files == Some(false) {
         run(&mut display::FilesOnlyMode::new(colors, false), opts);
+    } else if opts.ackmate_format {
+        run(&mut display::AckMateMode::new(), opts);
     } else if !opts.show_heading {
-        run(&mut display::OneLineMode::new(colors, opts.show_break), opts)
+        run(&mut display::OneLineMode::new(colors, opts.show_break), opts);
     } else {
         run(&mut display::DefaultMode::new(colors, opts.show_break), opts);
     }

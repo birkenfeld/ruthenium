@@ -63,6 +63,7 @@ pub struct Opts {
     pub only_count: bool,
     pub show_break: bool,
     pub show_heading: bool,
+    pub ackmate_format: bool,
 }
 
 macro_rules! flag {
@@ -115,6 +116,7 @@ impl Opts {
             .arg(flag!(noheading / --"noheading").conflicts_with("heading"))
             .arg(flag!(break / --"break"))
             .arg(flag!(nobreak / --"nobreak").conflicts_with("break"))
+            .arg(flag!(ackmate / --"ackmate"))
             ;
         let m = app.get_matches();
 
@@ -193,6 +195,7 @@ impl Opts {
             only_count: m.is_present("count"),
             show_break: showbreak,
             show_heading: heading,
+            ackmate_format: m.is_present("ackmate"),
         }
     }
 }

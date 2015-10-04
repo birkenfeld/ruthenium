@@ -105,6 +105,42 @@ impl DisplayMode for OneLineMode {
 }
 
 #[derive(Clone)]
+pub struct AckMateMode {
+    is_first: bool,
+}
+
+impl AckMateMode {
+    pub fn new() -> AckMateMode {
+        AckMateMode {
+            is_first: true,
+        }
+    }
+}
+
+impl DisplayMode for AckMateMode {
+    fn print_result(&mut self, res: FileResult) {
+        if res.matches.is_empty() {
+            return;
+        }
+        if !self.is_first {
+            println!("");
+        }
+        if res.is_binary {
+            println!("Binary file {} matches.", res.fname);
+        } else {
+            println!(":{}", res.fname);
+            for m in res.matches {
+                let spans = m.spans.iter()
+                                   .map(|&(s, e)| format!("{} {}", s, e - s))
+                                   .collect::<Vec<_>>().join(",");
+                println!("{};{}:{}", m.lineno, spans, m.line);
+            }
+        }
+        self.is_first = false;
+    }
+}
+
+#[derive(Clone)]
 pub struct FilesOnlyMode {
     colors: Colors,
     need_match: bool,
