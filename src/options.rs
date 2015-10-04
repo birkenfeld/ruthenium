@@ -9,6 +9,7 @@ pub struct Opts {
     pub path: String,
     pub depth: usize,
     pub follow_links: bool,
+    pub literal: bool,
     pub do_binaries: bool,
     pub do_hidden: bool,
     pub check_ignores: bool,

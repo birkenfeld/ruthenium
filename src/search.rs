@@ -11,8 +11,19 @@ use regex_dfa::Program as Regex;
 use display::DisplayMode;
 use options;
 
-pub fn create_rx(pattern: &str) -> Regex {
-    Regex::from_regex(pattern).unwrap()
+pub fn create_rx(pattern: &str, literal: bool) -> Regex {
+    let mut pattern = pattern.to_owned();
+    if literal {
+        const ESCAPE: &'static str = ".?*+|^$(){}[]\\";
+        pattern = pattern.chars().map(|c| {
+            if ESCAPE.find(c).is_some() {
+                format!("\\{}", c)
+            } else {
+                format!("{}", c)
+            }
+        }).collect();
+    }
+    Regex::from_regex(&pattern).unwrap()
 }
 
 pub fn is_binary(buf: &[u8], len: usize) -> bool {

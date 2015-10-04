@@ -21,6 +21,17 @@ use search::create_rx;
 use search::search;
 use options::Opts;
 
+macro_rules! flag {
+    ($n:ident -$f:ident) => {
+        Arg::with_name(stringify!($n)).short(stringify!($f))
+    };
+    ($n:ident -$f:ident --$l:expr) => {
+        Arg::with_name(stringify!($n)).short(stringify!($f)).long($l)
+    };
+    ($n:ident / --$l:expr) => {
+        Arg::with_name(stringify!($n)).long($l)
+    };
+}
 
 fn get_options() -> Opts {
     let version = format!("v{}", crate_version!());
@@ -30,20 +41,26 @@ fn get_options() -> Opts {
         .about("Recursively search for a pattern, like ack")
         .arg(Arg::with_name("pattern").required(true).index(1))
         .arg(Arg::with_name("path").index(2))
-        .arg(Arg::with_name("all").short("a"))
-        .arg(Arg::with_name("depth").long("depth").takes_value(true))
-        .arg(Arg::with_name("alltext").short("t").conflicts_with("all"))
-        .arg(Arg::with_name("unrestricted").short("u").conflicts_with("all"))
-        .arg(Arg::with_name("searchbinary").long("search-binary"))
-        .arg(Arg::with_name("searchhidden").long("hidden"))
-        .arg(Arg::with_name("fileswith").short("l"))
-        .arg(Arg::with_name("fileswithout").short("L").conflicts_with("fileswith"))
-        .arg(Arg::with_name("follow").short("f"))
+        .arg(flag!(all -a --"all-types"))
+        .arg(flag!(depth / --"depth").takes_value(true))
+        .arg(flag!(literal -Q --"literal"))
+        .arg(flag!(fixedstrings -F --"fixed-strings"))
+        .arg(flag!(alltext -t --"all-text").conflicts_with("all"))
+        .arg(flag!(unrestricted -u --"unrestricted").conflicts_with("all"))
+        .arg(flag!(searchbinary / --"searchbinary"))
+        .arg(flag!(searchhidden / --"hidden"))
+        .arg(flag!(fileswith -l --"files-with-matches"))
+        .arg(flag!(fileswithout -L --"files-without-matches").conflicts_with("fileswith"))
+        .arg(flag!(follow -f --"follow"))
         ;
     let m = app.get_matches();
     let mut binaries = m.is_present("searchbinary");
     let mut hidden = m.is_present("searchhidden");
     let mut ignores = true;
+    let mut literal = m.is_present("literal");
+    if m.is_present("fixedstrings") {
+        literal = true;
+    }
     if m.is_present("all") {
         binaries = true;
         ignores = false;
@@ -61,6 +78,7 @@ fn get_options() -> Opts {
         path: m.value_of("path").unwrap_or(".").into(),
         depth: m.value_of("depth").and_then(|v| v.parse().ok()).unwrap_or(::std::usize::MAX),
         follow_links: m.is_present("follow"),
+        literal: literal,
         do_binaries: binaries,
         do_hidden: hidden,
         check_ignores: ignores,
@@ -73,7 +91,7 @@ fn get_options() -> Opts {
 }
 
 fn walk<D: DisplayMode>(display: &D, opts: &Opts) {
-    let regex = create_rx(&opts.pattern);
+    let regex = create_rx(&opts.pattern, opts.literal);
 
     let mut first = true;
     let walker = walkdir::WalkDir::new(&opts.path)
