@@ -5,10 +5,44 @@
 
 use std::cmp::min;
 use std::path::Path;
+use std::sync::mpsc::Sender;
 use regex_dfa::Program as Regex;
 
-use display::DisplayMode;
-use options;
+use options::Opts;
+
+#[derive(Debug)]
+pub struct Match {
+    pub lineno: usize,
+    pub line: String,
+    pub spans: Vec<(usize, usize)>,
+}
+
+impl Match {
+    fn new(lineno: usize, line: &str) -> Match {
+        Match {
+            lineno: lineno,
+            line: line.into(),
+            spans: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct FileResult {
+    pub fname: String,
+    pub is_binary: bool,
+    pub matches: Vec<Match>,
+}
+
+impl FileResult {
+    fn new(fname: String) -> FileResult {
+        FileResult {
+            fname: fname,
+            is_binary: false,
+            matches: Vec::new(),
+        }
+    }
+}
 
 pub fn create_rx(pattern: &str, literal: bool) -> Regex {
     let mut pattern = pattern.to_owned();
@@ -42,44 +76,39 @@ pub fn is_binary(buf: &[u8], len: usize) -> bool {
     false
 }
 
-pub fn search<D>(path: &Path, buf: &[u8], regex: &Regex, opts: &options::Opts,
-                 display: &D, firstfile: bool) -> usize
-    where D: DisplayMode
-{
+pub fn search(chan: Sender<FileResult>, regex: &Regex, opts: &Opts,
+              path: &Path, buf: &[u8]) -> usize {
     let len = buf.len();
-    let mut start = 0;
-    let mut lineno = 0;
     let mut matches = 0;
-    let fname = path.to_string_lossy();
-    display.beforefile(&fname, firstfile);
+    let mut result = FileResult::new(path.to_string_lossy().into_owned());
     if is_binary(buf, len) {
+        result.is_binary = true;
         if opts.do_binaries {
             if let Ok(content) = ::std::str::from_utf8(buf) {
                 if let Some((_, _)) = regex.shortest_match(&content) {
-                    display.binmatch(&fname);
+                    result.matches.push(Match::new(0, ""));
                 }
             }
         }
-        display.afterfile(&fname, matches);
-        return 0;
-    }
-    while start < len {
-        lineno += 1;
-        let end = buf[start..].iter().position(|&x| x == b'\n').unwrap_or(len - start);
-        let line = &buf[start..start+end];
-        if let Ok(line) = ::std::str::from_utf8(line) {
-            if let Some(idx) = regex.shortest_match(&line) {
-                if matches == 0 {
-                    if !display.firstmatch(&fname, firstfile) {
-                        break;
-                    }
+    } else {
+        let mut start = 0;
+        let mut lineno = 0;
+        while start < len {
+            lineno += 1;
+            let end = buf[start..].iter().position(|&x| x == b'\n').unwrap_or(len - start);
+            let line = &buf[start..start+end];
+            if let Ok(line) = ::std::str::from_utf8(line) {
+                if let Some(idx) = regex.shortest_match(&line) {
+                    let mut m = Match::new(lineno, line);
+                    m.spans.push(idx);
+                    // XXX search further in line
+                    result.matches.push(m);
+                    matches += 1;
                 }
-                display.linematch(&fname, lineno, line, &[idx]);
-                matches += 1;
             }
+            start += end + 1;
         }
-        start += end + 1;
     }
-    display.afterfile(&fname, matches);
+    chan.send(result).unwrap();
     matches
 }

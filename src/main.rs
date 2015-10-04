@@ -15,91 +15,20 @@ mod display;
 mod options;
 
 use std::thread;
-use std::sync::mpsc::channel;
-use clap::{App, Arg};
+use std::sync::mpsc::{channel, Sender};
 use memmap::{Mmap, Protection};
 use scoped_threadpool::Pool;
 use walkdir::WalkDirIterator;
 
 use display::DisplayMode;
-use search::create_rx;
-use search::search;
+use search::{create_rx, search, FileResult};
 use options::Opts;
 
-macro_rules! flag {
-    ($n:ident -$f:ident) => {
-        Arg::with_name(stringify!($n)).short(stringify!($f))
-    };
-    ($n:ident -$f:ident --$l:expr) => {
-        Arg::with_name(stringify!($n)).short(stringify!($f)).long($l)
-    };
-    ($n:ident / --$l:expr) => {
-        Arg::with_name(stringify!($n)).long($l)
-    };
-}
 
-fn get_options() -> Opts {
-    let version = format!("v{}", crate_version!());
-    let app = App::new("Ruthenium")
-        .version(&version)
-        .usage("ru [options] PATTERN [PATH]")
-        .about("Recursively search for a pattern, like ack")
-        .arg(Arg::with_name("pattern").required(true).index(1))
-        .arg(Arg::with_name("path").index(2))
-        .arg(flag!(all -a --"all-types"))
-        .arg(flag!(depth / --"depth").takes_value(true))
-        .arg(flag!(literal -Q --"literal"))
-        .arg(flag!(fixedstrings -F --"fixed-strings"))
-        .arg(flag!(alltext -t --"all-text").conflicts_with("all"))
-        .arg(flag!(unrestricted -u --"unrestricted").conflicts_with("all"))
-        .arg(flag!(searchbinary / --"searchbinary"))
-        .arg(flag!(searchhidden / --"hidden"))
-        .arg(flag!(fileswith -l --"files-with-matches"))
-        .arg(flag!(fileswithout -L --"files-without-matches").conflicts_with("fileswith"))
-        .arg(flag!(follow -f --"follow"))
-        ;
-    let m = app.get_matches();
-    let mut binaries = m.is_present("searchbinary");
-    let mut hidden = m.is_present("searchhidden");
-    let mut ignores = true;
-    let mut literal = m.is_present("literal");
-    if m.is_present("fixedstrings") {
-        literal = true;
-    }
-    if m.is_present("all") {
-        binaries = true;
-        ignores = false;
-    }
-    else if m.is_present("alltext") {
-        ignores = false;
-    }
-    else if m.is_present("unrestricted") {
-        binaries = true;
-        hidden = true;
-        ignores = false;
-    }
-    Opts {
-        pattern: m.value_of("pattern").unwrap().into(),
-        path: m.value_of("path").unwrap_or(".").into(),
-        depth: m.value_of("depth").and_then(|v| v.parse().ok()).unwrap_or(::std::usize::MAX),
-        follow_links: m.is_present("follow"),
-        literal: literal,
-        do_binaries: binaries,
-        do_hidden: hidden,
-        check_ignores: ignores,
-        only_files: if m.is_present("fileswith") {
-            Some(true)
-        } else if m.is_present("fileswithout") {
-            Some(false)
-        } else { None },
-    }
-}
-
-fn walk<D: DisplayMode>(display: &D, opts: &Opts) {
+fn walk(chan: Sender<FileResult>, opts: &Opts) {
     let mut pool = Pool::new(3);
     let regex = create_rx(&opts.pattern, opts.literal);
 
-    let mut first = true;
     let walker = walkdir::WalkDir::new(&opts.path)
         .follow_links(opts.follow_links)
         .max_depth(opts.depth);
@@ -119,15 +48,13 @@ fn walk<D: DisplayMode>(display: &D, opts: &Opts) {
                 if !entry.metadata().map(|m| m.is_file()).unwrap_or(false) {
                     continue;
                 }
-                let dx = display.clone(); // XXX
                 let rx = regex.clone();
+                let ch = chan.clone();
                 scope.execute(move || {
                     // open and search file
                     if let Ok(map) = Mmap::open_path(entry.path(), Protection::Read) {
                         let buf = unsafe { map.as_slice() };
-                        if search(entry.path(), buf, &rx, &opts, &dx, first) > 0 {
-                            first = false;
-                        }
+                        search(ch, &rx, &opts, entry.path(), buf);
                     }
                 });
             }
@@ -135,25 +62,23 @@ fn walk<D: DisplayMode>(display: &D, opts: &Opts) {
     });
 }
 
-fn run<D: DisplayMode>(display: &D, opts: options::Opts) {
-    // set up threads
-    let d = display.clone();
+fn run<D: DisplayMode>(display: &mut D, opts: Opts) {
+    let (w_chan, r_chan) = channel();
     thread::spawn(move || {
-        walk(&d, &opts);
+        walk(w_chan, &opts);
     });
+    while let Ok(r) = r_chan.recv() {
+        display.print_result(r);
+    }
 }
 
 fn main() {
-    let opts = get_options();
-    let (w_chan, r_chan) = channel();
+    let opts = Opts::from_cmdline();
     if opts.only_files == Some(true) {
-        run(&display::FilesOnlyMode(w_chan), opts);
+        run(&mut display::FilesOnlyMode, opts);
     } else if opts.only_files == Some(false) {
-        run(&display::FilesWithoutMatchMode(w_chan), opts);
+        run(&mut display::FilesWithoutMatchMode, opts);
     } else {
-        run(&display::DefaultMode(w_chan), opts);
-    }
-    while let Ok(s) = r_chan.recv() {
-        println!("{}", s);
+        run(&mut display::DefaultMode::new(None), opts);
     }
 }
