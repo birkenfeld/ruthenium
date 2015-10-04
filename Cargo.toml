@@ -1,0 +1,20 @@
+[package]
+name = "ruthenium"
+version = "0.1.0"
+authors = ["Georg Brandl <georg@python.org>"]
+
+[[bin]]
+name = "ru"
+
+[profile.release]
+debug = true
+
+[dependencies]
+regex_dfa = "*"
+walkdir = "*"
+memmap = "*"
+
+[dependencies.clap]
+version = "1"
+default_features = false
+features = []
