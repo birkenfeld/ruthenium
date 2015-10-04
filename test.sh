@@ -24,4 +24,9 @@ run-all() {
 }
 
 cargo build --release || exit 1
+
+echo "List matches"
 run-all
+echo
+echo "List files"
+run-all -l

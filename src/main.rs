@@ -74,11 +74,12 @@ fn run<D: DisplayMode>(display: &mut D, opts: Opts) {
 
 fn main() {
     let mut opts = Opts::from_cmdline();
+    let colors = opts.colors.take().unwrap();
     if opts.only_files == Some(true) {
-        run(&mut display::FilesOnlyMode, opts);
+        run(&mut display::FilesOnlyMode::new(colors, true), opts);
     } else if opts.only_files == Some(false) {
-        run(&mut display::FilesWithoutMatchMode, opts);
+        run(&mut display::FilesOnlyMode::new(colors, false), opts);
     } else {
-        run(&mut display::DefaultMode::new(opts.colors.take().unwrap(), true), opts);
+        run(&mut display::DefaultMode::new(colors, true), opts);
     }
 }

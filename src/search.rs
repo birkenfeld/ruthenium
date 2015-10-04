@@ -108,6 +108,10 @@ pub fn search(chan: Sender<FileResult>, regex: &Regex, opts: &Opts,
                     }
                     result.matches.push(m);
                     matches += 1;
+                    if opts.only_files.is_some() {
+                        // need only one match for this mode
+                        break;
+                    }
                 }
             }
             start += end + 1;

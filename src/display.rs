@@ -64,11 +64,11 @@ impl DisplayMode for DefaultMode {
 
 #[derive(Clone)]
 pub struct OneLineMode {
-    colors: Option<Colors>,
+    colors: Colors,
 }
 
 impl OneLineMode {
-    pub fn new(colors: Option<Colors>) -> OneLineMode {
+    pub fn new(colors: Colors) -> OneLineMode {
         OneLineMode {
             colors: colors,
         }
@@ -91,23 +91,24 @@ impl DisplayMode for OneLineMode {
 }
 
 #[derive(Clone)]
-pub struct FilesOnlyMode;
+pub struct FilesOnlyMode {
+    colors: Colors,
+    need_match: bool,
+}
 
-impl DisplayMode for FilesOnlyMode {
-    fn print_result(&mut self, res: FileResult) {
-        if !res.matches.is_empty() {
-            println!("{}", res.fname);
+impl FilesOnlyMode {
+    pub fn new(colors: Colors, need_match: bool) -> FilesOnlyMode {
+        FilesOnlyMode {
+            colors: colors,
+            need_match: need_match,
         }
     }
 }
 
-#[derive(Clone)]
-pub struct FilesWithoutMatchMode;
-
-impl DisplayMode for FilesWithoutMatchMode {
+impl DisplayMode for FilesOnlyMode {
     fn print_result(&mut self, res: FileResult) {
-        if res.matches.is_empty() {
-            println!("{}", res.fname);
+        if res.matches.is_empty() == !self.need_match {
+            println!("{}{}{}", self.colors.path, res.fname, self.colors.reset);
         }
     }
 }
