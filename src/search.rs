@@ -65,7 +65,18 @@ pub fn create_rx(opts: &Opts) -> Regex {
     Regex::from_regex(&pattern).unwrap()
 }
 
-pub fn is_binary(buf: &[u8], len: usize) -> bool {
+fn normalized_path(path: &Path) -> String {
+    let s = path.to_string_lossy();
+    if s.starts_with("./") {
+        String::from(&s[2..])
+    } else if s.starts_with("//") {
+        String::from(&s[1..])
+    } else {
+        String::from(&s[..])
+    }
+}
+
+fn is_binary(buf: &[u8], len: usize) -> bool {
     if len == 0 {
         return false;
     }
@@ -85,7 +96,8 @@ pub fn is_binary(buf: &[u8], len: usize) -> bool {
 pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult {
     let len = buf.len();
     let mut matches = 0;
-    let mut result = FileResult::new(path.to_string_lossy().into_owned());
+    let mut result = FileResult::new(normalized_path(path));
+    let mut lines = Vec::new();
     if is_binary(buf, len) {
         result.is_binary = true;
         if opts.do_binaries {
