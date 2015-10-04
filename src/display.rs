@@ -141,6 +141,26 @@ impl DisplayMode for AckMateMode {
 }
 
 #[derive(Clone)]
+pub struct VimGrepMode;
+
+impl DisplayMode for VimGrepMode {
+    fn print_result(&mut self, res: FileResult) {
+        if res.matches.is_empty() {
+            return;
+        }
+        if res.is_binary {
+            println!("Binary file {} matches.", res.fname);
+        } else {
+            for m in res.matches {
+                for s in &m.spans {
+                    println!("{}:{}:{}:{}", res.fname, m.lineno, s.0 + 1, m.line);
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct FilesOnlyMode {
     colors: Colors,
     need_match: bool,

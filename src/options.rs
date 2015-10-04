@@ -66,6 +66,7 @@ pub struct Opts {
     pub show_break: bool,
     pub show_heading: bool,
     pub ackmate_format: bool,
+    pub vimgrep_format: bool,
     pub max_count: usize,
 }
 
@@ -120,6 +121,7 @@ impl Opts {
             .arg(flag!(break / --"break"))
             .arg(flag!(nobreak / --"nobreak").conflicts_with("break"))
             .arg(flag!(ackmate / --"ackmate"))
+            .arg(flag!(vimgrep / --"vimgrep"))
             .arg(flag!(maxcount -m --"max-count").takes_value(true))
             ;
         let m = app.get_matches();
@@ -202,6 +204,7 @@ impl Opts {
             show_break: showbreak,
             show_heading: heading,
             ackmate_format: m.is_present("ackmate"),
+            vimgrep_format: m.is_present("vimgrep"),
             max_count: maxcount,
         }
     }

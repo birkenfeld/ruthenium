@@ -84,6 +84,8 @@ fn main() {
         run(&mut display::FilesOnlyMode::new(colors, false), opts);
     } else if opts.ackmate_format {
         run(&mut display::AckMateMode::new(), opts);
+    } else if opts.vimgrep_format {
+        run(&mut display::VimGrepMode, opts);
     } else if !opts.show_heading {
         run(&mut display::OneLineMode::new(colors, opts.show_break), opts);
     } else {
