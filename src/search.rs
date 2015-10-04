@@ -99,9 +99,13 @@ pub fn search(chan: Sender<FileResult>, regex: &Regex, opts: &Opts,
             let line = &buf[start..start+end];
             if let Ok(line) = ::std::str::from_utf8(line) {
                 if let Some(idx) = regex.shortest_match(&line) {
+                    let mut searchfrom = idx.1;
                     let mut m = Match::new(lineno, line);
                     m.spans.push(idx);
-                    // XXX search further in line
+                    while let Some((i0, i1)) = regex.shortest_match(&line[searchfrom..]) {
+                        m.spans.push((searchfrom + i0, searchfrom + i1));
+                        searchfrom += i1;
+                    }
                     result.matches.push(m);
                     matches += 1;
                 }

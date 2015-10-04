@@ -7,9 +7,33 @@ use clap::{App, Arg};
 
 #[derive(Clone)]
 pub struct Colors {
+    pub reset: String,
     pub path: String,
     pub lineno: String,
     pub span: String,
+    pub punct: String,
+}
+
+impl Colors {
+    fn empty() -> Colors {
+        Colors {
+            reset: "".into(),
+            path: "".into(),
+            lineno: "".into(),
+            span: "".into(),
+            punct: "".into(),
+        }
+    }
+
+    fn from(path: &str, lineno: &str, span: &str, punct: &str) -> Colors {
+        Colors {
+            reset: "\x1b[0m".into(),
+            path: format!("\x1b[{}m", path),
+            lineno: format!("\x1b[{}m", lineno),
+            span: format!("\x1b[{}m", span),
+            punct: format!("\x1b[{}m", punct),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -23,6 +47,7 @@ pub struct Opts {
     pub do_hidden: bool,
     pub check_ignores: bool,
     pub only_files: Option<bool>,
+    pub colors: Option<Colors>,
 }
 
 macro_rules! flag {
@@ -57,12 +82,27 @@ impl Opts {
             .arg(flag!(fileswith -l --"files-with-matches"))
             .arg(flag!(fileswithout -L --"files-without-matches").conflicts_with("fileswith"))
             .arg(flag!(follow -f --"follow"))
+            .arg(flag!(nocolor / --"nocolor"))
+            .arg(flag!(colorlineno / --"color-line-number").takes_value(true))
+            .arg(flag!(colorspan / --"color-match").takes_value(true))
+            .arg(flag!(colorpath / --"color-path").takes_value(true))
+            .arg(flag!(colorpunct / --"color-punct").takes_value(true))
             ;
         let m = app.get_matches();
         let mut binaries = m.is_present("searchbinary");
         let mut hidden = m.is_present("searchhidden");
         let mut ignores = true;
         let mut literal = m.is_present("literal");
+        let colors = if m.is_present("nocolor") {
+            Colors::empty()
+        } else {
+            Colors::from(
+                m.value_of("colorpath").unwrap_or("35"),
+                m.value_of("colorlineno").unwrap_or("32"),
+                m.value_of("colorspan").unwrap_or("4"),
+                m.value_of("colorpunct").unwrap_or("1;36"),
+            )
+        };
         if m.is_present("fixedstrings") {
             literal = true;
         }
@@ -92,6 +132,7 @@ impl Opts {
             } else if m.is_present("fileswithout") {
                 Some(false)
             } else { None },
+            colors: Some(colors),
         }
     }
 }
