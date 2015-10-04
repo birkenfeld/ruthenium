@@ -3,6 +3,8 @@
 // Licensed under the MIT license.
 // ---------------------------------------------------------------------------------------
 
+use std::usize;
+
 use search::{FileResult, Match};
 use options::Colors;
 
@@ -50,6 +52,48 @@ impl DisplayMode for DefaultMode {
         }
         if res.is_binary {
             println!("Binary file {} matches.", res.fname);
+        } else if res.has_context {
+            // XXX refactor this mess!
+            println!("{}{}{}", self.colors.path, res.fname, self.colors.reset);
+            let mut last_printed_line = 0;
+            for (im, m) in res.matches.iter().enumerate() {
+                for (i, line) in m.before.iter().enumerate() {
+                    let lno = m.lineno - m.before.len() + i;
+                    if last_printed_line > 0 && lno > last_printed_line + 1 {
+                        println!("{}--{}", self.colors.punct, self.colors.reset);
+                    }
+                    if lno > last_printed_line {
+                        println!("{}{}{}{}-{}{}",
+                                 self.colors.lineno, lno, self.colors.reset,
+                                 self.colors.punct, self.colors.reset,
+                                 line);
+                        last_printed_line = lno;
+                    }
+                }
+                if last_printed_line > 0 && m.lineno > last_printed_line + 1 {
+                    println!("{}--{}", self.colors.punct, self.colors.reset);
+                }
+                print!("{}{}{}{}:{}",
+                       self.colors.lineno, m.lineno, self.colors.reset,
+                       self.colors.punct, self.colors.reset);
+                print_line_with_spans(&m, &self.colors);
+                last_printed_line = m.lineno;
+                let next_match_line = if im < res.matches.len() - 1 {
+                    res.matches[im + 1].lineno
+                } else {
+                    usize::MAX
+                };
+                for (i, line) in m.after.iter().enumerate() {
+                    let lno = m.lineno + i + 1;
+                    if lno < next_match_line {
+                        println!("{}{}{}{}-{}{}",
+                                 self.colors.lineno, lno, self.colors.reset,
+                                 self.colors.punct, self.colors.reset,
+                                 line);
+                        last_printed_line = lno;
+                    }
+                }
+            }
         } else {
             println!("{}{}{}", self.colors.path, res.fname, self.colors.reset);
             for m in res.matches {
@@ -90,6 +134,53 @@ impl DisplayMode for OneLineMode {
         }
         if res.is_binary {
             println!("Binary file {} matches.", res.fname);
+        } else if res.has_context {
+            // XXX refactor this copied mess!
+            let mut last_printed_line = 0;
+            for (im, m) in res.matches.iter().enumerate() {
+                for (i, line) in m.before.iter().enumerate() {
+                    let lno = m.lineno - m.before.len() + i;
+                    if last_printed_line > 0 && lno > last_printed_line + 1 {
+                        println!("{}--{}", self.colors.punct, self.colors.reset);
+                    }
+                    if lno > last_printed_line {
+                        println!("{}{}{}{}-{}{}{}{}{}-{}{}",
+                                 self.colors.path, res.fname, self.colors.reset,
+                                 self.colors.punct, self.colors.reset,
+                                 self.colors.lineno, lno, self.colors.reset,
+                                 self.colors.punct, self.colors.reset,
+                                 line);
+                        last_printed_line = lno;
+                    }
+                }
+                if last_printed_line > 0 && m.lineno > last_printed_line + 1 {
+                    println!("{}--{}", self.colors.punct, self.colors.reset);
+                }
+                print!("{}{}{}{}:{}{}{}{}{}:{}",
+                       self.colors.path, res.fname, self.colors.reset,
+                       self.colors.punct, self.colors.reset,
+                       self.colors.lineno, m.lineno, self.colors.reset,
+                       self.colors.punct, self.colors.reset);
+                print_line_with_spans(&m, &self.colors);
+                last_printed_line = m.lineno;
+                let next_match_line = if im < res.matches.len() - 1 {
+                    res.matches[im + 1].lineno
+                } else {
+                    usize::MAX
+                };
+                for (i, line) in m.after.iter().enumerate() {
+                    let lno = m.lineno + i + 1;
+                    if lno < next_match_line {
+                        println!("{}{}{}{}-{}{}{}{}{}-{}{}",
+                                 self.colors.path, res.fname, self.colors.reset,
+                                 self.colors.punct, self.colors.reset,
+                                 self.colors.lineno, lno, self.colors.reset,
+                                 self.colors.punct, self.colors.reset,
+                                 line);
+                        last_printed_line = lno;
+                    }
+                }
+            }
         } else {
             for m in res.matches {
                 print!("{}{}{}{}:{}{}{}{}{}:{}",

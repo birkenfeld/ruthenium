@@ -28,5 +28,8 @@ cargo build --release || exit 1
 echo "List matches"
 run-all
 echo
+echo "List matches with context"
+run-all -C 10
+echo
 echo "List files"
 run-all -l

@@ -68,6 +68,8 @@ pub struct Opts {
     pub ackmate_format: bool,
     pub vimgrep_format: bool,
     pub max_count: usize,
+    pub before: usize,
+    pub after: usize,
 }
 
 macro_rules! flag {
@@ -123,6 +125,9 @@ impl Opts {
             .arg(flag!(ackmate / --"ackmate"))
             .arg(flag!(vimgrep / --"vimgrep"))
             .arg(flag!(maxcount -m --"max-count").takes_value(true))
+            .arg(flag!(before -B --"before").takes_value(true))
+            .arg(flag!(after -A --"after").takes_value(true))
+            .arg(flag!(context -C --"context").takes_value(true))
             ;
         let m = app.get_matches();
 
@@ -162,7 +167,7 @@ impl Opts {
                 m.value_of("colorpath").unwrap_or("35"),
                 m.value_of("colorlineno").unwrap_or("32"),
                 m.value_of("colorspan").unwrap_or("4"),
-                m.value_of("colorpunct").unwrap_or("1;36"),
+                m.value_of("colorpunct").unwrap_or("36"),
             )
         };
         let mut heading = true;
@@ -179,6 +184,14 @@ impl Opts {
         }
         let maxcount = m.value_of("maxcount").and_then(|v| v.parse().ok())
                                              .unwrap_or(usize::MAX);
+        let mut before = m.value_of("before").and_then(|v| v.parse().ok())
+                                             .unwrap_or(0);
+        let mut after = m.value_of("after").and_then(|v| v.parse().ok())
+                                           .unwrap_or(0);
+        if m.is_present("context") {
+            before = m.value_of("context").unwrap().parse().ok().unwrap_or(0);
+            after = before;
+        }
 
         Opts {
             // file related
@@ -206,6 +219,8 @@ impl Opts {
             ackmate_format: m.is_present("ackmate"),
             vimgrep_format: m.is_present("vimgrep"),
             max_count: maxcount,
+            before: before,
+            after: after,
         }
     }
 }
