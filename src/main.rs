@@ -48,13 +48,14 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
                 if !entry.metadata().map(|m| m.is_file()).unwrap_or(false) {
                     continue;
                 }
-                let rx = regex.clone();
+                let rx = regex.clone(); // XXX
                 let ch = chan.clone();
                 scope.execute(move || {
                     // open and search file
                     if let Ok(map) = Mmap::open_path(entry.path(), Protection::Read) {
                         let buf = unsafe { map.as_slice() };
-                        search(ch, &rx, &opts, entry.path(), buf);
+                        let res = search(&rx, &opts, entry.path(), buf);
+                        ch.send(res).unwrap();
                     }
                 });
             }

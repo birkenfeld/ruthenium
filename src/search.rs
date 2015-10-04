@@ -5,7 +5,6 @@
 
 use std::cmp::min;
 use std::path::Path;
-use std::sync::mpsc::Sender;
 use regex_dfa::Program as Regex;
 
 use options::{Casing, Opts};
@@ -83,8 +82,7 @@ pub fn is_binary(buf: &[u8], len: usize) -> bool {
     false
 }
 
-pub fn search(chan: Sender<FileResult>, regex: &Regex, opts: &Opts,
-              path: &Path, buf: &[u8]) -> usize {
+pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult {
     let len = buf.len();
     let mut matches = 0;
     let mut result = FileResult::new(path.to_string_lossy().into_owned());
@@ -126,6 +124,5 @@ pub fn search(chan: Sender<FileResult>, regex: &Regex, opts: &Opts,
             start += end + 1;
         }
     }
-    chan.send(result).unwrap();
-    matches
+    result
 }
