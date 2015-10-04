@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::mpsc::Sender;
 use regex_dfa::Program as Regex;
 
-use options::Opts;
+use options::{Casing, Opts};
 
 #[derive(Debug)]
 pub struct Match {
@@ -44,9 +44,9 @@ impl FileResult {
     }
 }
 
-pub fn create_rx(pattern: &str, literal: bool) -> Regex {
-    let mut pattern = pattern.to_owned();
-    if literal {
+pub fn create_rx(opts: &Opts) -> Regex {
+    let mut pattern = opts.pattern.to_owned();
+    if opts.literal {
         const ESCAPE: &'static str = ".?*+|^$(){}[]\\";
         pattern = pattern.chars().map(|c| {
             if ESCAPE.find(c).is_some() {
@@ -55,6 +55,13 @@ pub fn create_rx(pattern: &str, literal: bool) -> Regex {
                 format!("{}", c)
             }
         }).collect();
+    }
+    if let Casing::Insensitive = opts.casing {
+        pattern = format!("(?i){}", pattern);
+    } else if let Casing::Smart = opts.casing {
+        if !pattern.chars().any(|c| c.is_uppercase()) {
+            pattern = format!("(?i){}", pattern);
+        }
     }
     Regex::from_regex(&pattern).unwrap()
 }

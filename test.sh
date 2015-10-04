@@ -3,7 +3,7 @@
 export RUST_BACKTRACE=1
 
 run-grep() {
-  time grep -r "$@" p.th tst > /dev/null
+  time grep -ri "$@" p.th tst > /dev/null
 }
 
 run-ag() {

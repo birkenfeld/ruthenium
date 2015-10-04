@@ -27,7 +27,7 @@ use options::Opts;
 
 fn walk(chan: Sender<FileResult>, opts: &Opts) {
     let mut pool = Pool::new(3);
-    let regex = create_rx(&opts.pattern, opts.literal);
+    let regex = create_rx(&opts);
 
     let walker = walkdir::WalkDir::new(&opts.path)
         .follow_links(opts.follow_links)
@@ -75,11 +75,15 @@ fn run<D: DisplayMode>(display: &mut D, opts: Opts) {
 fn main() {
     let mut opts = Opts::from_cmdline();
     let colors = opts.colors.take().unwrap();
-    if opts.only_files == Some(true) {
+    if opts.only_count {
+        run(&mut display::CountMode::new(colors), opts);
+    } else if opts.only_files == Some(true) {
         run(&mut display::FilesOnlyMode::new(colors, true), opts);
     } else if opts.only_files == Some(false) {
         run(&mut display::FilesOnlyMode::new(colors, false), opts);
+    } else if !opts.show_heading {
+        run(&mut display::OneLineMode::new(colors, opts.show_break), opts)
     } else {
-        run(&mut display::DefaultMode::new(colors, true), opts);
+        run(&mut display::DefaultMode::new(colors, opts.show_break), opts);
     }
 }
