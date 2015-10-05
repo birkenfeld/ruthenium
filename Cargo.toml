@@ -15,6 +15,7 @@ walkdir = "*"
 memmap = "*"
 scoped_threadpool = "*"
 num_cpus = "*"
+glob = "*"
 
 [dependencies.clap]
 version = "1"

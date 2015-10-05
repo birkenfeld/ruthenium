@@ -152,6 +152,7 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
                     matches += 1;
                     if opts.only_files.is_some() {
                         // need only one match for this mode
+                        result.matches.push(m);
                         break;
                     } else if matches >= opts.max_count {
                         break; // XXX must collect context!

@@ -268,7 +268,7 @@ impl FilesOnlyMode {
 
 impl DisplayMode for FilesOnlyMode {
     fn print_result(&mut self, res: FileResult) {
-        if res.matches.is_empty() == !self.need_match {
+        if res.matches.is_empty() != self.need_match {
             println!("{}{}{}", self.colors.path, res.fname, self.colors.reset);
         }
     }

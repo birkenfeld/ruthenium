@@ -10,11 +10,14 @@ extern crate walkdir;
 extern crate memmap;
 extern crate scoped_threadpool;
 extern crate num_cpus;
+extern crate glob;
 
 mod search;
+mod ignore;
 mod display;
 mod options;
 
+use std::cell::RefCell;
 use std::cmp::max;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
@@ -34,29 +37,52 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
     let walker = walkdir::WalkDir::new(&opts.path)
         .follow_links(opts.follow_links)
         .max_depth(opts.depth);
-    let walker = walker.into_iter().filter_entry(|entry| {
-        // weed out hidden files
-        if let Some(fname) = entry.path().file_name() {
-            if !opts.do_hidden && fname.to_string_lossy().starts_with(".") {
-                return false;
-            }
-        }
-        true
-    });
     pool.scoped(|scope| {
         let rx = &regex;
+        let mut parent_stack: Vec<::std::path::PathBuf> = Vec::new();
+        let ignore_stack = RefCell::new(Vec::new()); // XXX: add global ignores from cmdline/config?
+        let walker = walker.into_iter().filter_entry(|entry| {
+            // weed out hidden files
+            let path = entry.path();
+            if let Some(fname) = path.file_name() {
+                if !opts.do_hidden && fname.to_string_lossy().starts_with(".") {
+                    return false;
+                }
+            }
+            if opts.check_ignores && ignore::match_patterns(path, &ignore_stack.borrow()) {
+                return false;
+            }
+            true
+        });
         for entry in walker {
             if let Ok(entry) = entry {
-                // weed out directories and special files
-                if !entry.metadata().map(|m| m.is_file()).unwrap_or(false) {
+                // we got a new dir?
+                if entry.file_type().is_dir() {
+                    let mut ignore_stack = ignore_stack.borrow_mut();
+                    let new_path = entry.path().to_path_buf();
+                    // find the parent of this new directory on the stack
+                    while !parent_stack.is_empty() &&
+                        parent_stack.last().unwrap().as_path() != new_path.parent().unwrap()
+                    {
+                        ignore_stack.pop();
+                        parent_stack.pop();
+                    }
+                    // read ignore patterns specific to this directory
+                    ignore_stack.push(ignore::read_patterns(&new_path));
+                    parent_stack.push(new_path);
+                    continue;
+                }
+                // weed out further special files
+                if !entry.file_type().is_file() {
                     continue;
                 }
                 // open and search file in one of the worker threads
                 let ch = chan.clone();
                 scope.execute(move || {
-                    if let Ok(map) = Mmap::open_path(entry.path(), Protection::Read) {
+                    let path = entry.path();
+                    if let Ok(map) = Mmap::open_path(path, Protection::Read) {
                         let buf = unsafe { map.as_slice() };
-                        let res = search::search(rx, &opts, entry.path(), buf);
+                        let res = search::search(rx, &opts, path, buf);
                         ch.send(res).unwrap();
                     }
                 });
