@@ -12,12 +12,19 @@ use std::path::{Path, PathBuf};
 use glob::{Pattern, MatchOptions};
 
 
+/// Represents the ignore patterns for one directory, the `root`.
 #[derive(Debug)]
 pub struct Ignores {
+    /// Path patterns are relative to this directory
     root: PathBuf,
+    /// Literal filenames to exclude
     filenames: BTreeSet<String>,
+    /// Literal file extensions to exclude
     extensions: BTreeSet<String>,
+    /// Patterns to exclude (can have paths)
     patterns: Vec<Pattern>,
+    /// "Negated patterns": matched after a file would be excluded,
+    /// if it matches, the exclusion is canceled
     negated_patterns: Vec<Pattern>,
 }
 
@@ -29,9 +36,14 @@ fn is_literal_extension(s: &str) -> bool {
     s.chars().all(|v| !(v == '*' || v == '?' || v == '[' || v == ']' || v == '/' || v == '.'))
 }
 
+/// Read gitignore-style patterns from a filename and add all recognized
+/// patterns to the Ignores object.
 fn read_git_patterns_from(path: &Path, ignores: &mut Ignores) {
+    // add a complex pattern
     fn add_pat(line: &str, vec: &mut Vec<Pattern>) {
         let pat = Pattern::from_str(
+            // if a pattern doesn't start with "/", it is not anchored to the root,
+            // so to make glob match any such file we need to start it with "**/"
             if !line.starts_with("/") {
                 Cow::Owned(String::from("**/") + line)
             } else {
@@ -46,15 +58,20 @@ fn read_git_patterns_from(path: &Path, ignores: &mut Ignores) {
         for line in reader.lines() {
             if let Ok(line) = line {
                 let line = line.trim();
+                // empty line or comment, ignore
                 if line.is_empty() || line.starts_with("#") {
                     continue;
                 }
+                // negated pattern (no special casing for filenames/exts here)
                 if line.starts_with("!") {
                     add_pat(&line[1..], &mut ignores.negated_patterns);
+                // simple filename
                 } else if is_literal_filename(line) {
                     ignores.filenames.insert(line.into());
+                // simple *.ext
                 } else if line.starts_with("*.") && is_literal_extension(&line[2..]) {
                     ignores.extensions.insert(line[2..].into());
+                // complex non-negated pattern
                 } else {
                     add_pat(line, &mut ignores.patterns);
                 }
@@ -63,6 +80,7 @@ fn read_git_patterns_from(path: &Path, ignores: &mut Ignores) {
     }
 }
 
+/// Read patterns from all recognized and existing ignore files in `dir`.
 pub fn read_patterns(dir: &Path) -> Ignores {
     let mut result = Ignores {
         root: dir.to_path_buf(),
@@ -79,7 +97,9 @@ pub fn read_patterns(dir: &Path) -> Ignores {
     result
 }
 
-// unstable, from std::path::Path
+/// Return relative path from `base` to `path`.
+///
+/// Copied from std::path::Path, where it is still unstable.
 pub fn relative_path_from<'a, P: AsRef<Path>>(path: &'a Path, base: &'a P) -> Option<&'a Path>
 {
     fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I> where
@@ -102,6 +122,7 @@ pub fn relative_path_from<'a, P: AsRef<Path>>(path: &'a Path, base: &'a P) -> Op
     iter_after(path.components(), base.as_ref().components()).map(|c| c.as_path())
 }
 
+/// Match `path` against the ignore stack `ignores`, return true if match found.
 pub fn match_patterns(path: &Path, ignores: &[Ignores]) -> bool {
     const OPTS: MatchOptions = MatchOptions {
         case_sensitive: true,
@@ -127,6 +148,7 @@ pub fn match_patterns(path: &Path, ignores: &[Ignores]) -> bool {
                 }
             }
         }
+        // apply negated patterns if necessary
         if is_ignored && !ignore.negated_patterns.is_empty() {
             let relpath = relative_path_from(path, &ignore.root).unwrap();
             for pattern in &ignore.negated_patterns {

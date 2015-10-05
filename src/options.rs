@@ -10,6 +10,7 @@ use libc;
 use clap::{App, AppSettings, Arg};
 use num_cpus;
 
+/// Contains the ANSI codes needed to set the terminal to a certain color.
 #[derive(Clone)]
 pub struct Colors {
     pub reset: String,
@@ -20,6 +21,7 @@ pub struct Colors {
 }
 
 impl Colors {
+    /// Create a struct where no colors are emitted.
     fn empty() -> Colors {
         Colors {
             reset: "".into(),
@@ -30,6 +32,8 @@ impl Colors {
         }
     }
 
+    /// Create a struct from given color specs.  Color specs are the payload
+    /// of the color ANSI sequences, e.g. "01;31".
     fn from(path: &str, lineno: &str, span: &str, punct: &str) -> Colors {
         Colors {
             reset: "\x1b[0m".into(),
@@ -41,6 +45,10 @@ impl Colors {
     }
 }
 
+/// Case-sensitivity matching options.
+///
+/// Smart casing means insensitive as long as the pattern contains no uppercase
+/// letters.
 #[derive(Clone)]
 pub enum Casing {
     Default,
@@ -48,6 +56,7 @@ pub enum Casing {
     Insensitive,
 }
 
+/// Holds all options for the search.
 #[derive(Clone)]
 pub struct Opts {
     // file related options
@@ -77,7 +86,8 @@ pub struct Opts {
     pub workers: u32,
 }
 
-// from libtest
+// Taken from libtest, there seems to be no better way presently.
+// There are a few libraries on crates.io, but without Windows support.
 
 #[cfg(unix)]
 fn stdout_isatty() -> bool {
@@ -98,6 +108,7 @@ fn stdout_isatty() -> bool {
     }
 }
 
+/// Somewhat simpler creation of flag Args.
 macro_rules! flag {
     ($n:ident -$f:ident) => {
         Arg::with_name(stringify!($n)).short(stringify!($f))
@@ -118,7 +129,7 @@ impl Opts {
             .usage("ru [options] PATTERN [PATH]")
             .about("Recursively search for a pattern, like ack")
             .setting(AppSettings::UnifiedHelpMessage)
-            .setting(AppSettings::ArgRequiredElseHelp)
+            .setting(AppSettings::ArgRequiredElseHelp)  // seems to be not working
             .arg(Arg::with_name("pattern").required(true).index(1))
             .arg(Arg::with_name("path").index(2))
             .arg(flag!(all -a --"all-types"))
@@ -158,6 +169,7 @@ impl Opts {
             ;
         let m = app.get_matches();
 
+        // process option values
         let depth = m.value_of("depth").and_then(|v| v.parse::<usize>().ok())
                                        .map(|v| v + 1) // 0 == immediate children
                                        .unwrap_or(usize::MAX);

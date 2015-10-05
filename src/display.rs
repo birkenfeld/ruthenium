@@ -9,10 +9,13 @@ use search::{FileResult, Match};
 use options::Colors;
 
 
+/// A trait for printing search results to stdout.
 pub trait DisplayMode: Send + Clone + 'static {
+    /// Print results from a single file.
     fn print_result(&mut self, res: FileResult);
 }
 
+/// Helper: print a line with matched spans highlighted.
 fn print_line_with_spans(m: &Match, colors: &Colors) {
     let mut pos = 0;
     for &(start, end) in &m.spans {
@@ -25,6 +28,9 @@ fn print_line_with_spans(m: &Match, colors: &Colors) {
     println!("{}", &m.line[pos..]);
 }
 
+/// The default mode, used when printing to tty stdout.
+///
+/// Uses grouping by file names by default and can use colors.  Can print context.
 #[derive(Clone)]
 pub struct DefaultMode {
     colors: Colors,
@@ -107,6 +113,10 @@ impl DisplayMode for DefaultMode {
     }
 }
 
+/// The one-match-per-line mode, used by defaultwhen printing to non-tty stdout.
+///
+/// Uses no grouping by default, but can use colors (for tty stdout with --nogroup).
+/// Can print context.
 #[derive(Clone)]
 pub struct OneLineMode {
     colors: Colors,
@@ -195,6 +205,9 @@ impl DisplayMode for OneLineMode {
     }
 }
 
+/// The mode used for --ackmate mode.
+///
+/// No colors, one matched line per line, all spans indicated numerically.
 #[derive(Clone)]
 pub struct AckMateMode {
     is_first: bool,
@@ -231,6 +244,10 @@ impl DisplayMode for AckMateMode {
     }
 }
 
+/// The mode used for --vimgrep mode.
+///
+/// No colors, one match per line (so lines with multiple matches are printed
+/// multiple times).
 #[derive(Clone)]
 pub struct VimGrepMode;
 
@@ -251,6 +268,9 @@ impl DisplayMode for VimGrepMode {
     }
 }
 
+/// The mode used for --files-with-matches and --files-without-matches.
+///
+/// One file per line, no contents printed.
 #[derive(Clone)]
 pub struct FilesOnlyMode {
     colors: Colors,
@@ -274,6 +294,9 @@ impl DisplayMode for FilesOnlyMode {
     }
 }
 
+/// The mode used for --count mode.
+///
+/// One file per line, followed by match count (not matched line count).
 #[derive(Clone)]
 pub struct CountMode {
     colors: Colors,

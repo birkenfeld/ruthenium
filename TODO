@@ -1,6 +1,9 @@
 TODOs
 =====
 
-* error handling: change unwraps and "if let Ok"
+* help texts for command-line options
+* comprehensive test suite and tests against grep, ag, ack
+* more command-line options for ag compatibility
+* error handling: no unwraps and "if let Ok", add messages to stderr
 * ignore handling for more than gitignore files
-* comprehensive tests against grep, ag and ack
+* better binary file detection
