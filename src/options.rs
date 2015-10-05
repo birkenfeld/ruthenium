@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 // ---------------------------------------------------------------------------------------
 
+use std::cmp::min;
 use std::usize;
 
 use libc;
@@ -228,7 +229,7 @@ impl Opts {
         }
 
         let workers = m.value_of("workers").and_then(|v| v.parse().ok())
-                                           .unwrap_or(num_cpus::get()) as u32;
+                                           .unwrap_or(min(4, num_cpus::get())) as u32;
 
         Opts {
             // file related

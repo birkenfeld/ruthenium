@@ -2,5 +2,5 @@ TODOs
 =====
 
 * error handling: change unwraps and "if let Ok"
-* ignore handling
+* ignore handling for more than gitignore files
 * comprehensive tests against grep, ag and ack

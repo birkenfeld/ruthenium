@@ -43,6 +43,19 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
         let mut parent_stack: Vec<::std::path::PathBuf> = Vec::new();
         let ignore_stack = RefCell::new(Vec::new()); // XXX: add global ignores from cmdline/config?
         let walker = walker.into_iter().filter_entry(|entry| {
+            let mut ignore_stack = ignore_stack.borrow_mut();
+            {
+                let new_parent = entry.path().parent().unwrap();
+                //println!("new_parent: {:?}", new_parent);
+                // remove parents that are not applicable anymore
+                while !parent_stack.is_empty() &&
+                    parent_stack.last().unwrap().as_path() != new_parent
+                {
+                    //println!("popping");
+                    ignore_stack.pop();
+                    parent_stack.pop();
+                }
+            }
             // weed out hidden files
             let path = entry.path();
             if let Some(fname) = path.file_name() {
@@ -50,29 +63,21 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
                     return false;
                 }
             }
-            if opts.check_ignores && ignore::match_patterns(path, &ignore_stack.borrow()) {
+            if opts.check_ignores && ignore::match_patterns(path, &ignore_stack) {
                 return false;
             }
+            // we got a new dir?
+            if entry.file_type().is_dir() {
+                let new_path = entry.path().to_path_buf();
+                // read ignore patterns specific to this directory
+                ignore_stack.push(ignore::read_patterns(&new_path));
+                parent_stack.push(new_path);
+            }
+            //println!("{:?} {:?}", entry.path(), parent_stack);
             true
         });
         for entry in walker {
             if let Ok(entry) = entry {
-                // we got a new dir?
-                if entry.file_type().is_dir() {
-                    let mut ignore_stack = ignore_stack.borrow_mut();
-                    let new_path = entry.path().to_path_buf();
-                    // find the parent of this new directory on the stack
-                    while !parent_stack.is_empty() &&
-                        parent_stack.last().unwrap().as_path() != new_path.parent().unwrap()
-                    {
-                        ignore_stack.pop();
-                        parent_stack.pop();
-                    }
-                    // read ignore patterns specific to this directory
-                    ignore_stack.push(ignore::read_patterns(&new_path));
-                    parent_stack.push(new_path);
-                    continue;
-                }
                 // weed out further special files
                 if !entry.file_type().is_file() {
                     continue;
