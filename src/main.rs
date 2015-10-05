@@ -18,7 +18,6 @@ mod ignore;
 mod display;
 mod options;
 
-use std::cell::RefCell;
 use std::cmp::max;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
@@ -41,9 +40,10 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
     pool.scoped(|scope| {
         let rx = &regex;
         let mut parent_stack: Vec<::std::path::PathBuf> = Vec::new();
-        let ignore_stack = RefCell::new(Vec::new()); // XXX: add global ignores from cmdline/config?
+        // stack of Ignore structs per directory, they accumulate
+        // XXX: add global ignores from cmdline and a config file here
+        let mut ignore_stack = Vec::new();
         let walker = walker.into_iter().filter_entry(|entry| {
-            let mut ignore_stack = ignore_stack.borrow_mut();
             {
                 let new_parent = entry.path().parent().unwrap();
                 //println!("new_parent: {:?}", new_parent);
