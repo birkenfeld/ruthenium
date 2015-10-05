@@ -15,5 +15,5 @@ output_ack = sorted(output_ack.splitlines())
 output_ag = sorted(output_ag.splitlines())
 output_ru = sorted(output_ru.splitlines())
 
-for line in difflib.unified_diff(output_ack, output_ag):
+for line in difflib.unified_diff(output_ag, output_ru):
     print line

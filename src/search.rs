@@ -123,10 +123,62 @@ fn is_binary(buf: &[u8], len: usize) -> bool {
     false
 }
 
+/// Iterator-like struct for collecting lines within a u8 buffer.
+struct Lines<'a> {
+    buf: &'a [u8],
+    lines: Vec<&'a [u8]>,
+    start: usize,
+    lineno: usize,
+}
+
+impl<'a> Lines<'a> {
+    pub fn new(buf: &[u8]) -> Lines {
+        Lines { buf: buf, lines: Vec::new(), start: 0, lineno: 0 }
+    }
+
+    /// Get next line in the main iteration.
+    pub fn next(&mut self) -> Option<(usize, &'a [u8])> {
+        let lno = self.lineno;
+        self.lineno += 1;
+        if lno < self.lines.len() {
+            Some((lno, self.lines[lno]))
+        } else if self.advance(lno) {
+            Some((lno, self.lines[lno]))
+        } else {
+            None
+        }
+    }
+
+    /// Get an arbitrary line as a string.
+    pub fn get_line(&mut self, lineno: usize) -> Option<String> {
+        if self.advance(lineno) {
+            Some(String::from_utf8_lossy(self.lines[lineno]).into_owned())
+        } else {
+            None
+        }
+    }
+
+    /// Advance the line detection until we have at least need_idx+1 lines.
+    /// Return false if EOF was reached before given number of lines.
+    fn advance(&mut self, need_idx: usize) -> bool {
+        while self.lines.len() < need_idx + 1 {
+            if self.start >= self.buf.len() {
+                return false;
+            }
+            let end = self.buf[self.start..].iter()
+                                            .position(|&x| x == b'\n')
+                                            .unwrap_or(self.buf.len() - self.start);
+            let line = &self.buf[self.start..self.start+end];
+            self.lines.push(line);
+            self.start += end + 1;
+        }
+        true
+    }
+}
+
 /// Search a single file (represented as a u8 buffer) for matching lines.
 pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult {
     let len = buf.len();
-    let mut matches = 0;
     let mut result = FileResult::new(normalized_path(path));
     result.has_context = opts.before > 0 || opts.after > 0;
     // binary file?
@@ -145,80 +197,48 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
             }
         }
     } else {
-        // cache read lines for context
-        let mut lines = Vec::new();
-        let mut start = 0;
-        let mut lineno = 0;
-        let mut needs_ctxt: Vec<(Match, usize)> = Vec::new();
-        while start < len {
-            lineno += 1;
-            // find the end of this line (or EOF)
-            let end = buf[start..].iter().position(|&x| x == b'\n')
-                                         .unwrap_or(len - start);
-            let line = &buf[start..start+end];
-            lines.push(line);
-
-            // collect "after" context for previously seen matches
-            // XXX: refactor this, it uses too many vecs, and copies lines over
-            // and over again in pathological cases
-            let mut remove = Vec::new();
-            for (i, t) in needs_ctxt.iter_mut().enumerate() {
-                t.0.after.push(String::from_utf8_lossy(line).into_owned());
-                t.1 -= 1;
-                if t.1 == 0 {
-                    remove.push(i);
-                }
-            }
-            for i in &remove {
-                result.matches.push(needs_ctxt.remove(*i).0);
-            }
-
+        let mut lines = Lines::new(buf);
+        //let mut line_strings = VecMap::new();
+        while let Some((lineno, line)) = lines.next() {
             // XXX: we should not have to do from_utf8 but all current regex engines
             // work on Unicode strings, so they need a str
             if let Ok(line) = str::from_utf8(line) {
                 if let Some(idx) = regex.shortest_match(&line) {
                     let mut searchfrom = idx.1;
-                    // create a match object for this line
-                    let mut m = Match::new(lineno, line);
+                    // create a match object for this line (lineno is 1-based)
+                    let mut m = Match::new(lineno + 1, line);
                     m.spans.push(idx);
                     // search for further matches in this line
                     while let Some((i0, i1)) = regex.shortest_match(&line[searchfrom..]) {
                         m.spans.push((searchfrom + i0, searchfrom + i1));
                         searchfrom += i1;
                     }
-                    matches += 1;
-                    if opts.only_files.is_some() {
-                        // need only one match per file for this mode
-                        result.matches.push(m);
-                        break;
-                    } else if matches >= opts.max_count {
-                        // XXX: must still collect "after" context!
-                        break;
-                    }
 
                     // collect "before" context for this match
                     if opts.before > 0 {
-                        for i in 0..opts.before {
-                            let j = opts.before - i;
-                            if j < lineno {
-                                m.before.push(String::from_utf8_lossy(lines[lineno-j-1]).into_owned());
+                        for lno in lineno.saturating_sub(opts.before)..lineno {
+                            m.before.push(lines.get_line(lno).unwrap());
+                        }
+                    }
+                    // collect "after" context for this match
+                    if opts.after > 0 {
+                        for lno in lineno+1..lineno+opts.after+1 {
+                            if let Some(line) = lines.get_line(lno) {
+                                m.after.push(line);
                             }
                         }
                     }
+                    result.matches.push(m);
 
-                    // mark this match as maybe needing "after" context
-                    if opts.after > 0 {
-                        needs_ctxt.push((m, opts.after));
-                    } else {
-                        result.matches.push(m);
+                    if opts.only_files.is_some() {
+                        // need only one match per file for this mode
+                        break;
+                    } else if result.matches.len() >= opts.max_count {
+                        break;
                     }
                 }
             }
-            start += end + 1;
         }
-
-        // no more "after" context lines for these outstanding matches
-        result.matches.extend(needs_ctxt.into_iter().map(|(m, _)| m));
     }
     result
 }

@@ -7,11 +7,11 @@ run-grep() {
 }
 
 run-ag() {
-  time ag -u "$@" p.th tst > /dev/null
+  time ag "$@" p.th tst > /dev/null
 }
 
 run-ru() {
-  time target/release/ru -u "$@" p.th tst > /dev/null
+  time target/release/ru "$@" p.th tst > /dev/null
 }
 
 run-all() {
