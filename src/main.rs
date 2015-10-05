@@ -44,17 +44,14 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
         // XXX: add global ignores from cmdline and a config file here
         let mut ignore_stack = Vec::new();
         let walker = walker.into_iter().filter_entry(|entry| {
+            let new_parent = entry.path().parent().unwrap();
+            // remove parents that are not applicable anymore
+            while !parent_stack.is_empty() &&
+                parent_stack.last().unwrap().as_path() != new_parent
             {
-                let new_parent = entry.path().parent().unwrap();
-                //println!("new_parent: {:?}", new_parent);
-                // remove parents that are not applicable anymore
-                while !parent_stack.is_empty() &&
-                    parent_stack.last().unwrap().as_path() != new_parent
-                {
-                    //println!("popping");
-                    ignore_stack.pop();
-                    parent_stack.pop();
-                }
+                //println!("popping");
+                ignore_stack.pop();
+                parent_stack.pop();
             }
             // weed out hidden files
             let path = entry.path();
