@@ -49,8 +49,10 @@ pub fn read_patterns(dir: &Path) -> Ignores {
         extensions: BTreeSet::new(),
         patterns: Vec::new(),
     };
-    if metadata(dir.join(".gitignore")).map(|f| f.is_file()).unwrap_or(false) {
-        read_patterns_from(&dir.join(".gitignore"), &mut result);
+    for gitexcludes in &[".gitignore", ".git/info/excludes"] {
+        if metadata(dir.join(gitexcludes)).map(|f| f.is_file()).unwrap_or(false) {
+            read_patterns_from(&dir.join(gitexcludes), &mut result);
+        }
     }
     result
 }
@@ -87,7 +89,7 @@ pub fn match_patterns(path: &Path, ignores: &[Ignores]) -> bool {
         }
         for pattern in &ignore.patterns {
             if pattern.matches_path(relative_path_from(path, &ignore.root).unwrap()) {
-                println!("{:?} matches {}", path, pattern);
+                //println!("{:?} matches {}", path, pattern);
                 return true;
             }
         }

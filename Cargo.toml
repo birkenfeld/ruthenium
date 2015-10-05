@@ -10,6 +10,7 @@ name = "ru"
 debug = true
 
 [dependencies]
+libc = "*"
 regex_dfa = "*"
 walkdir = "*"
 memmap = "*"

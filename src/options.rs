@@ -5,6 +5,7 @@
 
 use std::usize;
 
+use libc;
 use clap::{App, AppSettings, Arg};
 use num_cpus;
 
@@ -73,6 +74,27 @@ pub struct Opts {
     pub after: usize,
     // others
     pub workers: u32,
+}
+
+// from libtest
+
+#[cfg(unix)]
+fn stdout_isatty() -> bool {
+    unsafe { libc::isatty(libc::STDOUT_FILENO) != 0 }
+}
+#[cfg(windows)]
+fn stdout_isatty() -> bool {
+    const STD_OUTPUT_HANDLE: libc::DWORD = -11i32 as libc::DWORD;
+    extern "system" {
+        fn GetStdHandle(which: libc::DWORD) -> libc::HANDLE;
+        fn GetConsoleMode(hConsoleHandle: libc::HANDLE,
+                          lpMode: libc::LPDWORD) -> libc::BOOL;
+    }
+    unsafe {
+        let handle = GetStdHandle(STD_OUTPUT_HANDLE);
+        let mut out = 0;
+        GetConsoleMode(handle, &mut out) != 0
+    }
 }
 
 macro_rules! flag {
@@ -164,7 +186,8 @@ impl Opts {
             literal = true;
         }
 
-        let colors = if m.is_present("nocolor") {
+        let out_to_tty = stdout_isatty();
+        let colors = if !out_to_tty || m.is_present("nocolor") {
             Colors::empty()
         } else {
             Colors::from(
@@ -174,15 +197,22 @@ impl Opts {
                 m.value_of("colorpunct").unwrap_or("36"),
             )
         };
-        let mut heading = true;
-        let mut showbreak = true;
-        if m.is_present("noheading") {
+        let mut heading = out_to_tty;
+        let mut showbreak = out_to_tty;
+        if m.is_present("heading") {
+            heading = true;
+        } else if m.is_present("noheading") {
             heading = false;
         }
-        if m.is_present("nobreak") {
+        if m.is_present("break") {
+            showbreak = true;
+        } else if m.is_present("nobreak") {
             showbreak = false;
         }
-        if m.is_present("nogroup") {
+        if m.is_present("group") {
+            heading = true;
+            showbreak = true;
+        } else if m.is_present("nogroup") {
             heading = false;
             showbreak = false;
         }
