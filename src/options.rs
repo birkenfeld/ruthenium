@@ -247,7 +247,7 @@ impl Opts {
             // file related
             path: m.value_of("path").unwrap_or(".").into(),
             depth: depth,
-            follow_links: !m.is_present("nofollow"),
+            follow_links: m.is_present("follow"),
             do_binaries: binaries,
             do_hidden: hidden,
             // ignore file related

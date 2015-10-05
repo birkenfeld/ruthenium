@@ -7,3 +7,4 @@ TODOs
 * error handling: no unwraps and "if let Ok", add messages to stderr
 * ignore handling for more than gitignore files
 * better binary file detection
+* switching to other regex impl for complex things like backrefs
