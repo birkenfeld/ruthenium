@@ -1,7 +1,8 @@
 #!/bin/zsh
 
 export RUST_BACKTRACE=1
-NEEDLE=p.th
+NEEDLE="$1"
+if [ -z "$NEEDLE" ]; then NEEDLE=p.th; fi
 
 run-grep() {
   time grep -ri "$@" $NEEDLE tst > /dev/null

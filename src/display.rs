@@ -42,16 +42,20 @@ impl DefaultMode {
 
     /// Helper: print a line with matched spans highlighted.
     fn print_line_with_spans(&self, m: &Match) {
-        let mut pos = 0;
-        for &(start, end) in &m.spans {
-            if start > pos {
-                print!("{}", &m.line[pos..start]);
+        if self.colors.empty {
+            println!("{}", m.line);
+        } else {
+            let mut pos = 0;
+            for &(start, end) in &m.spans {
+                if start > pos {
+                    print!("{}", &m.line[pos..start]);
+                }
+                print!("{}{}{}",
+                       self.colors.span, &m.line[start..end], self.colors.reset);
+                pos = end;
             }
-            print!("{}{}{}",
-                   self.colors.span, &m.line[start..end], self.colors.reset);
-            pos = end;
+            println!("{}", &m.line[pos..]);
         }
-        println!("{}", &m.line[pos..]);
     }
 
     /// Helper: print a match with custom callbacks for file header and match line.

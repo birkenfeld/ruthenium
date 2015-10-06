@@ -18,6 +18,7 @@ pub struct Colors {
     pub lineno: String,
     pub span: String,
     pub punct: String,
+    pub empty: bool,
 }
 
 impl Colors {
@@ -29,6 +30,7 @@ impl Colors {
             lineno: "".into(),
             span: "".into(),
             punct: "".into(),
+            empty: true,
         }
     }
 
@@ -41,6 +43,7 @@ impl Colors {
             lineno: format!("\x1b[{}m", lineno),
             span: format!("\x1b[{}m", span),
             punct: format!("\x1b[{}m", punct),
+            empty: false,
         }
     }
 }
