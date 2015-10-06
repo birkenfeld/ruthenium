@@ -134,9 +134,7 @@ fn main() {
         run(&mut display::AckMateMode::new(), opts);
     } else if opts.vimgrep_format {
         run(&mut display::VimGrepMode, opts);
-    } else if !opts.show_heading {
-        run(&mut display::OneLineMode::new(colors, opts.show_break), opts);
     } else {
-        run(&mut display::DefaultMode::new(colors, opts.show_break), opts);
+        run(&mut display::DefaultMode::new(colors, opts.show_break, opts.show_heading), opts);
     }
 }
