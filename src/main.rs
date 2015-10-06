@@ -19,7 +19,7 @@ mod display;
 mod options;
 
 use std::cmp::max;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{sync_channel, SyncSender};
 use std::thread;
 use memmap::{Mmap, Protection};
 use scoped_threadpool::Pool;
@@ -37,7 +37,7 @@ use options::Opts;
 ///
 /// The thread of this function only does the directory walking, it spawns a
 /// number of worker threads in a pool to grep individual files.
-fn walk(chan: Sender<FileResult>, opts: &Opts) {
+fn walk(chan: SyncSender<FileResult>, opts: &Opts) {
     // thread pool for individual file grep worker threads
     let mut pool = Pool::new(max(opts.workers - 1, 1));
     // create the regex object
@@ -109,7 +109,7 @@ fn walk(chan: Sender<FileResult>, opts: &Opts) {
 ///
 /// Spawns the walker thread and prints the results.
 fn run<D: DisplayMode>(display: &mut D, opts: Opts) {
-    let (w_chan, r_chan) = channel();
+    let (w_chan, r_chan) = sync_channel(2 * opts.workers as usize);
     thread::spawn(move || {
         walk(w_chan, &opts);
     });
