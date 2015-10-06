@@ -4,16 +4,20 @@ export RUST_BACKTRACE=1
 NEEDLE="$1"
 if [ -z "$NEEDLE" ]; then NEEDLE=p.th; fi
 
+run-timed() {
+  /usr/bin/time --format="%Us user %Ss system %P%% cpu %e total, max RSS %Mk" "$@"
+}
+
 run-grep() {
-  time grep -ri "$@" $NEEDLE tst > /dev/null
+  run-timed grep -ri "$@" $NEEDLE tst > /dev/null
 }
 
 run-ag() {
-  time ag "$@" $NEEDLE tst > /dev/null
+  run-timed ag "$@" $NEEDLE tst > /dev/null
 }
 
 run-ru() {
-  time target/release/ru "$@" $NEEDLE tst > /dev/null
+  run-timed target/release/ru "$@" $NEEDLE tst > /dev/null
 }
 
 run-all() {
