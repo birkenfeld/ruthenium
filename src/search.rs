@@ -26,11 +26,11 @@ pub struct Match {
 }
 
 impl Match {
-    fn new(lineno: usize, line: &str) -> Match {
+    fn new(lineno: usize, line: &str, spans: Vec<(usize, usize)>) -> Match {
         Match {
             lineno: lineno,
             line: line.into(),
-            spans: Vec::new(),
+            spans: spans,
             before: Vec::new(),
             after: Vec::new(),
         }
@@ -192,7 +192,7 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
                     // found a match: create a dummy match object, and
                     // leave it there (we never need more info than
                     // "matched" or "didn't match")
-                    result.matches.push(Match::new(0, ""));
+                    result.matches.push(Match::new(0, "", Vec::new()));
                 }
             }
         }
@@ -203,39 +203,44 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
             // XXX: we should not have to do from_utf8 but all current regex engines
             // work on Unicode strings, so they need a str
             if let Ok(line) = str::from_utf8(line) {
-                if let Some(idx) = regex.shortest_match(&line) {
-                    let mut searchfrom = idx.1;
+                let mut spans = Vec::new();
+                if let Some(span) = regex.shortest_match(&line) {
+                    let mut searchfrom = span.1;
                     // create a match object for this line (lineno is 1-based)
-                    let mut m = Match::new(lineno + 1, line);
-                    m.spans.push(idx);
+                    spans.push(span);
                     // search for further matches in this line
                     while let Some((i0, i1)) = regex.shortest_match(&line[searchfrom..]) {
-                        m.spans.push((searchfrom + i0, searchfrom + i1));
+                        spans.push((searchfrom + i0, searchfrom + i1));
                         searchfrom += i1;
                     }
+                }
+                if opts.invert != spans.is_empty() {
+                    // no match
+                    continue;
+                }
+                let mut m = Match::new(lineno + 1, line, spans);
 
-                    // collect "before" context for this match
-                    if opts.before > 0 {
-                        for lno in lineno.saturating_sub(opts.before)..lineno {
-                            m.before.push(lines.get_line(lno).unwrap());
+                // collect "before" context for this match
+                if opts.before > 0 {
+                    for lno in lineno.saturating_sub(opts.before)..lineno {
+                        m.before.push(lines.get_line(lno).unwrap());
+                    }
+                }
+                // collect "after" context for this match
+                if opts.after > 0 {
+                    for lno in lineno+1..lineno+opts.after+1 {
+                        if let Some(line) = lines.get_line(lno) {
+                            m.after.push(line);
                         }
                     }
-                    // collect "after" context for this match
-                    if opts.after > 0 {
-                        for lno in lineno+1..lineno+opts.after+1 {
-                            if let Some(line) = lines.get_line(lno) {
-                                m.after.push(line);
-                            }
-                        }
-                    }
-                    result.matches.push(m);
+                }
+                result.matches.push(m);
 
-                    if opts.only_files.is_some() {
-                        // need only one match per file for this mode
-                        break;
-                    } else if result.matches.len() >= opts.max_count {
-                        break;
-                    }
+                if opts.only_files.is_some() {
+                    // need only one match per file for this mode
+                    break;
+                } else if result.matches.len() >= opts.max_count {
+                    break;
                 }
             }
         }

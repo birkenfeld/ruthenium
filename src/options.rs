@@ -71,6 +71,7 @@ pub struct Opts {
     pub pattern: String,
     pub casing: Casing,
     pub literal: bool,
+    pub invert: bool,
     // display related options
     pub colors: Option<Colors>,
     pub only_files: Option<bool>,
@@ -124,6 +125,7 @@ macro_rules! flag {
 impl Opts {
     pub fn from_cmdline() -> Opts {
         let version = format!("v{}", crate_version!());
+        // XXX: sort and group the arguments once they are all done
         let app = App::new("Ruthenium")
             .version(&version)
             .usage("ru [options] PATTERN [PATH]")
@@ -166,6 +168,7 @@ impl Opts {
             .arg(flag!(after -A --"after").takes_value(true))
             .arg(flag!(context -C --"context").takes_value(true))
             .arg(flag!(workers / --"workers").takes_value(true))
+            .arg(flag!(invert -v --"invert-match"))
             ;
         let m = app.get_matches();
 
@@ -256,6 +259,7 @@ impl Opts {
             pattern: m.value_of("pattern").unwrap().into(),
             casing: casing,
             literal: literal,
+            invert: m.is_present("invert"),
             // display related
             colors: Some(colors),
             only_files: if m.is_present("fileswith") {
