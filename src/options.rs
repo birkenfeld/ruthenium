@@ -13,11 +13,11 @@ use num_cpus;
 /// Contains the ANSI codes needed to set the terminal to a certain color.
 #[derive(Clone)]
 pub struct Colors {
-    pub reset: String,
-    pub path: String,
-    pub lineno: String,
-    pub span: String,
-    pub punct: String,
+    pub reset: Vec<u8>,
+    pub path: Vec<u8>,
+    pub lineno: Vec<u8>,
+    pub span: Vec<u8>,
+    pub punct: Vec<u8>,
     pub empty: bool,
 }
 
@@ -25,11 +25,11 @@ impl Colors {
     /// Create a struct where no colors are emitted.
     fn empty() -> Colors {
         Colors {
-            reset: "".into(),
-            path: "".into(),
-            lineno: "".into(),
-            span: "".into(),
-            punct: "".into(),
+            reset: vec![],
+            path: vec![],
+            lineno: vec![],
+            span: vec![],
+            punct: vec![],
             empty: true,
         }
     }
@@ -38,11 +38,11 @@ impl Colors {
     /// of the color ANSI sequences, e.g. "01;31".
     fn from(path: &str, lineno: &str, span: &str, punct: &str) -> Colors {
         Colors {
-            reset: "\x1b[0m".into(),
-            path: format!("\x1b[{}m", path),
-            lineno: format!("\x1b[{}m", lineno),
-            span: format!("\x1b[{}m", span),
-            punct: format!("\x1b[{}m", punct),
+            reset: b"\x1b[0m".to_vec(),
+            path: format!("\x1b[{}m", path).into_bytes(),
+            lineno: format!("\x1b[{}m", lineno).into_bytes(),
+            span: format!("\x1b[{}m", span).into_bytes(),
+            punct: format!("\x1b[{}m", punct).into_bytes(),
             empty: false,
         }
     }

@@ -5,7 +5,6 @@
 
 use std::cmp::min;
 use std::path::Path;
-use std::str;
 
 //use regex_dfa::Program as Regex;
 use pcre::Regex;
@@ -18,17 +17,17 @@ pub struct Match {
     /// Line number in the file
     pub lineno: usize,
     /// Line text
-    pub line: String,
+    pub line: Vec<u8>,
     /// Spans (start, end) of matching parts in the line
     pub spans: Vec<(usize, usize)>,
     /// Context lines before the matched line
-    pub before: Vec<String>,
+    pub before: Vec<Vec<u8>>,
     /// Context lines after the matched line
-    pub after: Vec<String>,
+    pub after: Vec<Vec<u8>>,
 }
 
 impl Match {
-    fn new(lineno: usize, line: &str, spans: Vec<(usize, usize)>) -> Match {
+    fn new(lineno: usize, line: &[u8], spans: Vec<(usize, usize)>) -> Match {
         Match {
             lineno: lineno,
             line: line.into(),
@@ -152,9 +151,9 @@ impl<'a> Lines<'a> {
     }
 
     /// Get an arbitrary line as a string.
-    pub fn get_line(&mut self, lineno: usize) -> Option<String> {
+    pub fn get_line(&mut self, lineno: usize) -> Option<Vec<u8>> {
         if self.advance(lineno) {
-            Some(String::from_utf8_lossy(self.lines[lineno]).into_owned())
+            Some(self.lines[lineno].to_vec())
         } else {
             None
         }
@@ -189,61 +188,54 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
         // if we care for binaries at all
         if opts.do_binaries {
             // XXX: obviously the from_utf8 will fail for binary files
-            if let Ok(content) = str::from_utf8(buf) {
-                if let Some((_, _)) = regex.shortest_match(&content) {
-                    // found a match: create a dummy match object, and
-                    // leave it there (we never need more info than
-                    // "matched" or "didn't match")
-                    result.matches.push(Match::new(0, "", Vec::new()));
-                }
+            if let Some((_, _)) = regex.shortest_match(buf) {
+                // found a match: create a dummy match object, and
+                // leave it there (we never need more info than
+                // "matched" or "didn't match")
+                result.matches.push(Match::new(0, &[], Vec::new()));
             }
         }
     } else {
         let mut lines = Lines::new(buf);
-        //let mut line_strings = VecMap::new();
         while let Some((lineno, line)) = lines.next() {
-            // XXX: we should not have to do from_utf8 but all current regex engines
-            // work on Unicode strings, so they need a str
-            if let Ok(line) = str::from_utf8(line) {
-                let mut spans = Vec::new();
-                if let Some(span) = regex.shortest_match(&line) {
-                    let mut searchfrom = span.1;
-                    // create a match object for this line (lineno is 1-based)
-                    spans.push(span);
-                    // search for further matches in this line
-                    while let Some((i0, i1)) = regex.shortest_match(&line[searchfrom..]) {
-                        spans.push((searchfrom + i0, searchfrom + i1));
-                        searchfrom += i1;
-                    }
+            let mut spans = Vec::new();
+            if let Some(span) = regex.shortest_match(line) {
+                let mut searchfrom = span.1;
+                // create a match object for this line (lineno is 1-based)
+                spans.push(span);
+                // search for further matches in this line
+                while let Some((i0, i1)) = regex.shortest_match(&line[searchfrom..]) {
+                    spans.push((searchfrom + i0, searchfrom + i1));
+                    searchfrom += i1;
                 }
-                if opts.invert != spans.is_empty() {
-                    // no match
-                    continue;
-                }
-                let mut m = Match::new(lineno + 1, line, spans);
+            }
+            if opts.invert != spans.is_empty() {
+                // no match
+                continue;
+            }
+            let mut m = Match::new(lineno + 1, line, spans);
 
-                // collect "before" context for this match
-                if opts.before > 0 {
-                    for lno in lineno.saturating_sub(opts.before)..lineno {
-                        m.before.push(lines.get_line(lno).unwrap());
+            // collect "before" context for this match
+            if opts.before > 0 {
+                for lno in lineno.saturating_sub(opts.before)..lineno {
+                    m.before.push(lines.get_line(lno).unwrap());
+                }
+            }
+            // collect "after" context for this match
+            if opts.after > 0 {
+                for lno in lineno+1..lineno+opts.after+1 {
+                    if let Some(line) = lines.get_line(lno) {
+                        m.after.push(line);
                     }
                 }
-                // collect "after" context for this match
-                if opts.after > 0 {
-                    for lno in lineno+1..lineno+opts.after+1 {
-                        if let Some(line) = lines.get_line(lno) {
-                            m.after.push(line);
-                        }
-                    }
-                }
-                result.matches.push(m);
+            }
+            result.matches.push(m);
 
-                if opts.only_files.is_some() {
-                    // need only one match per file for this mode
-                    break;
-                } else if result.matches.len() >= opts.max_count {
-                    break;
-                }
+            if opts.only_files.is_some() {
+                // need only one match per file for this mode
+                break;
+            } else if result.matches.len() >= opts.max_count {
+                break;
             }
         }
     }

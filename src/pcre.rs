@@ -248,7 +248,7 @@ pub struct Regex {
 
 /// Represents a match of a subject string against a regular expression.
 pub struct Match<'s> {
-    subject: &'s str,
+    subject: &'s [u8],
     partial_ovector: Vec<c_int>,
     string_count: c_int
 }
@@ -256,7 +256,7 @@ pub struct Match<'s> {
 /// Iterator type for iterating matches within a subject string.
 pub struct MatchIterator<'r, 's> {
     regex: &'r Regex,
-    subject: &'s str,
+    subject: &'s [u8],
     offset: c_int,
     options: ExecOptions,
     ovector: Vec<c_int>
@@ -342,17 +342,17 @@ impl Regex {
     }
 
     #[inline]
-    pub fn exec<'a>(&self, subject: &'a str) -> Option<Match<'a>> {
+    pub fn exec<'a>(&self, subject: &'a [u8]) -> Option<Match<'a>> {
         self.exec_from(subject, 0)
     }
 
     #[inline]
-    pub fn exec_from<'a>(&self, subject: &'a str, startoffset: usize) -> Option<Match<'a>> {
+    pub fn exec_from<'a>(&self, subject: &'a [u8], startoffset: usize) -> Option<Match<'a>> {
         self.exec_from_with_options(subject, startoffset, 0)
     }
 
     #[inline]
-    pub fn exec_from_with_options<'a>(&self, subject: &'a str, startoffset: usize,
+    pub fn exec_from_with_options<'a>(&self, subject: &'a [u8], startoffset: usize,
                                       options: ExecOptions) -> Option<Match<'a>> {
         let ovecsize = (self.capture_count + 1) * 3;
         let mut ovector = vec![0 as c_int; ovecsize as usize];
@@ -381,17 +381,17 @@ impl Regex {
 
     /// For compatibility with regex-dfa.
     #[inline]
-    pub fn shortest_match(&self, subject: &str) -> Option<(usize, usize)> {
+    pub fn shortest_match(&self, subject: &[u8]) -> Option<(usize, usize)> {
         self.exec(subject).map(|m| (m.group_start(0), m.group_end(0)))
     }
 
     #[inline]
-    pub fn matches<'r, 's>(&'r self, subject: &'s str) -> MatchIterator<'r, 's> {
+    pub fn matches<'r, 's>(&'r self, subject: &'s [u8]) -> MatchIterator<'r, 's> {
         self.matches_with_options(subject, 0)
     }
 
     #[inline]
-    pub fn matches_with_options<'r, 's>(&'r self, subject: &'s str, options: ExecOptions)
+    pub fn matches_with_options<'r, 's>(&'r self, subject: &'s [u8], options: ExecOptions)
                                         -> MatchIterator<'r, 's> {
         let ovecsize = (self.capture_count + 1) * 3;
         MatchIterator {
@@ -454,7 +454,7 @@ impl<'a> Match<'a> {
 
     /// Returns the substring for capture group `n` as a slice.
     #[inline]
-    pub fn group(&'a self, n: usize) -> &'a str {
+    pub fn group(&'a self, n: usize) -> &'a [u8] {
         let group_offsets = &self.partial_ovector[((n * 2) as usize)..];
         let start = group_offsets[0];
         let end = group_offsets[1];
