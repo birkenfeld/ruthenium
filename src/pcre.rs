@@ -49,7 +49,7 @@ mod ffi {
                           errptr: *mut *const c_char) -> *mut pcre_extra;
     }
 
-    pub const PCRE_UTF8: compile_options = 0x00000800;
+    // pub const PCRE_UTF8: compile_options = 0x00000800;
 
     // PCRE_NO_UTF8_CHECK is both a compile and exec option
     pub const PCRE_NO_UTF8_CHECK: c_int = 0x00002000;
@@ -88,7 +88,7 @@ pub unsafe fn pcre_compile(pattern: *const c_char, options: ffi::compile_options
                            tableptr: *const c_uchar) -> Result<*mut ffi::pcre, (String, c_int)> {
     assert!(!pattern.is_null());
     // the pattern is always UTF-8
-    let options = options | ffi::PCRE_UTF8 | ffi::PCRE_NO_UTF8_CHECK;
+    let options = options | ffi::PCRE_NO_UTF8_CHECK;
     let mut err: *const c_char = ptr::null();
     let mut erroffset: c_int = 0;
     let code = ffi::pcre_compile(pattern, options, &mut err, &mut erroffset, tableptr);
@@ -112,6 +112,7 @@ pub unsafe fn pcre_exec(code: *const ffi::pcre, extra: *const ffi::pcre_extra,
                         ovector: *mut c_int, ovecsize: c_int) -> Result<c_int, ()> {
     assert!(!code.is_null());
     assert!(ovecsize >= 0 && ovecsize % 3 == 0);
+    let options = options | ffi::PCRE_NO_UTF8_CHECK;
     let rc = ffi::pcre_exec(code, extra, subject, length, startoffset, options, ovector, ovecsize);
     if rc == ffi::PCRE_ERROR_NOMATCH {
         Ok(-1)
