@@ -12,11 +12,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(dead_code)]
-
 use std::ffi::{CStr, CString};
-use std::fmt;
-use std::ptr;
+use std::{fmt, ptr};
 use libc::{c_char, c_int, c_uchar, c_void};
 
 mod ffi {
@@ -41,16 +38,15 @@ mod ffi {
         pub fn pcre_exec(code: *const pcre, extra: *const pcre_extra, subject: *const c_char,
                          length: c_int, startoffset: c_int, options: exec_options,
                          ovector: *mut c_int, ovecsize: c_int) -> c_int;
-        pub fn pcre_dfa_exec(code: *const pcre, extra: *const pcre_extra,
-                             subject: *const c_char, length: c_int, startoffset: c_int,
-                             options: exec_options, ovector: *mut c_int, ovecsize: c_int,
-                             workspace: *mut c_int, wscount: c_int) -> c_int;
+        // pub fn pcre_dfa_exec(code: *const pcre, extra: *const pcre_extra,
+        //                      subject: *const c_char, length: c_int, startoffset: c_int,
+        //                      options: exec_options, ovector: *mut c_int, ovecsize: c_int,
+        //                      workspace: *mut c_int, wscount: c_int) -> c_int;
         pub fn pcre_free_study(extra: *mut pcre_extra);
         pub fn pcre_fullinfo(code: *const pcre, extra: *const pcre_extra, what: fullinfo_field,
                              where_: *mut c_void) -> c_int;
         pub fn pcre_study(code: *const pcre, options: study_options,
                           errptr: *mut *const c_char) -> *mut pcre_extra;
-        pub fn pcre_version() -> *const c_char;
     }
 
     pub const PCRE_UTF8: compile_options = 0x00000800;
@@ -62,22 +58,14 @@ mod ffi {
     pub const PCRE_ERROR_NULL: c_int = -2;
 
     pub const PCRE_INFO_CAPTURECOUNT: fullinfo_field = 2;
-    pub const PCRE_INFO_NAMEENTRYSIZE: fullinfo_field = 7;
-    pub const PCRE_INFO_NAMECOUNT: fullinfo_field = 8;
-    pub const PCRE_INFO_NAMETABLE: fullinfo_field = 9;
+    // pub const PCRE_INFO_NAMEENTRYSIZE: fullinfo_field = 7;
+    // pub const PCRE_INFO_NAMECOUNT: fullinfo_field = 8;
+    // pub const PCRE_INFO_NAMETABLE: fullinfo_field = 9;
 
     pub const PCRE_STUDY_JIT_COMPILE: c_int = 0x0001;
-    pub const PCRE_STUDY_JIT_PARTIAL_SOFT_COMPILE: c_int = 0x0002;
-    pub const PCRE_STUDY_JIT_PARTIAL_HARD_COMPILE: c_int = 0x0004;
-    pub const PCRE_STUDY_EXTRA_NEEDED: c_int = 0x0008;
-
-    //const PCRE_EXTRA_STUDY_DATA: c_ulong = 0x0001;
-    const PCRE_EXTRA_MATCH_LIMIT: c_ulong = 0x0002;
-    //const PCRE_EXTRA_CALLOUT_DATA: c_ulong = 0x0004;
-    //const PCRE_EXTRA_TABLES: c_ulong = 0x0008;
-    const PCRE_EXTRA_MATCH_LIMIT_RECURSION: c_ulong = 0x0010;
-    const PCRE_EXTRA_MARK: c_ulong = 0x0020;
-    //const PCRE_EXTRA_EXECUTABLE_JIT: c_ulong = 0x0040;
+    // pub const PCRE_STUDY_JIT_PARTIAL_SOFT_COMPILE: c_int = 0x0002;
+    // pub const PCRE_STUDY_JIT_PARTIAL_HARD_COMPILE: c_int = 0x0004;
+    // pub const PCRE_STUDY_EXTRA_NEEDED: c_int = 0x0008;
 
     #[allow(non_camel_case_types)]
     pub enum pcre {}
@@ -93,43 +81,6 @@ mod ffi {
         match_limit_recursion_: c_ulong,
         mark: *mut *mut c_uchar,
         executable_jit: *mut c_void
-    }
-
-    impl pcre_extra {
-        /// Returns the match limit, if previously set by [set_match_limit()](#method.set_match_limit).
-        ///
-        /// The default value for this limit is set when PCRE is built. The default default is 10 million.
-        pub fn match_limit(&self) -> Option<usize> {
-            if (self.flags & PCRE_EXTRA_MATCH_LIMIT) == 0 {
-                None
-            } else {
-                Some(self.match_limit as usize)
-            }
-        }
-
-        /// Sets the match limit to `limit` instead of using PCRE's default.
-        pub fn set_match_limit(&mut self, limit: u32) {
-            self.flags |= PCRE_EXTRA_MATCH_LIMIT;
-            self.match_limit = limit as c_ulong;
-        }
-
-        /// Returns the recursion depth limit, if previously set by
-        /// [set_match_limit_recursion()](#method.set_match_limit_recursion).
-        ///
-        /// The default value for this limit is set when PCRE is built.
-        pub fn match_limit_recursion(&self) -> Option<usize> {
-            if (self.flags & PCRE_EXTRA_MATCH_LIMIT_RECURSION) == 0 {
-                None
-            } else {
-                Some(self.match_limit_recursion_ as usize)
-            }
-        }
-
-        /// Sets the recursion depth limit to `limit` instead of using PCRE's default.
-        pub fn set_match_limit_recursion(&mut self, limit: u32) {
-            self.flags |= PCRE_EXTRA_MATCH_LIMIT_RECURSION;
-            self.match_limit = limit as c_ulong;
-        }
     }
 }
 
@@ -171,6 +122,7 @@ pub unsafe fn pcre_exec(code: *const ffi::pcre, extra: *const ffi::pcre_extra,
     }
 }
 
+/*
 pub unsafe fn pcre_dfa_exec(code: *const ffi::pcre, extra: *const ffi::pcre_extra,
                             subject: *const c_char, length: c_int, startoffset: c_int,
                             options: ffi::compile_options,
@@ -190,6 +142,7 @@ pub unsafe fn pcre_dfa_exec(code: *const ffi::pcre, extra: *const ffi::pcre_extr
         Ok(rc)
     }
 }
+*/
 
 pub unsafe fn pcre_free(ptr: *mut c_void) {
     ffi::pcre_free(ptr);
@@ -227,11 +180,6 @@ pub unsafe fn pcre_study(code: *const ffi::pcre, options: ffi::study_options)
     }
 }
 
-// pub fn pcre_version() -> String {
-//     let version_cstr = unsafe { CStr::from_ptr(ffi::pcre_version()) };
-//     version_cstr.to_string_lossy().into_owned()
-// }
-
 pub type Pcre = ffi::pcre;
 pub type PcreExtra = ffi::pcre_extra;
 pub type CompileOptions = ffi::compile_options;
@@ -248,6 +196,7 @@ pub struct Regex {
 }
 
 /// Represents a match of a subject string against a regular expression.
+#[allow(unused)]
 pub struct Match<'s> {
     subject: &'s [u8],
     partial_ovector: Vec<c_int>,
@@ -264,32 +213,17 @@ pub struct MatchIterator<'r, 's> {
 }
 
 #[derive(Debug)]
-pub struct CompilationError {
-    err: String,
-    erroffset: c_int
-}
-
-impl CompilationError {
-    pub fn message(&self) -> Option<String> {
-        Some(self.err.clone())
-    }
-
-    pub fn offset(&self) -> usize {
-        self.erroffset as usize
-    }
-}
+pub struct CompilationError(String, c_int);
 
 impl fmt::Display for CompilationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "compilation failed at offset {}: {}", self.erroffset, self.err)
+        write!(f, "compilation failed at offset {}: {}", self.1, self.0)
     }
 }
 
 impl Regex {
-    pub fn compile(pattern: &str) -> Result<Regex, CompilationError> {
-        Regex::compile_with_options(pattern, 0)
-    }
 
+    /// For compatibility with regex-dfa.
     pub fn from_regex(pattern: &str) -> Result<Regex, CompilationError> {
         Regex::compile_with_options(pattern, 0).map(|mut rx| {
             rx.study_with_options(ffi::PCRE_STUDY_JIT_COMPILE);
@@ -300,44 +234,27 @@ impl Regex {
     pub fn compile_with_options(pattern: &str, options: CompileOptions)
                                 -> Result<Regex, CompilationError> {
         let pattern_cstring = CString::new(pattern).unwrap();
-        unsafe {
-            // Use the default character tables.
-            let tableptr: *const c_uchar = ptr::null();
-            match pcre_compile(pattern_cstring.as_ptr(), options, tableptr) {
-                Err((err, erroffset)) => Err(CompilationError {
-                    err: err,
-                    erroffset: erroffset
-                }),
-                Ok(mut_code) => {
-                    let code = mut_code as *const Pcre;
-                    assert!(!code.is_null());
+        // Use the default character tables.
+        let tableptr: *const c_uchar = ptr::null();
+        match unsafe { pcre_compile(pattern_cstring.as_ptr(), options, tableptr) } {
+            Err((errstr, offset)) => Err(CompilationError(errstr, offset)),
+            Ok(mut_code) => {
+                let code = mut_code as *const Pcre;
+                assert!(!code.is_null());
 
-                    let extra: *mut PcreExtra = ptr::null_mut();
-                    let mut capture_count: c_int = 0;
+                // Default extra is null.
+                let extra: *mut PcreExtra = ptr::null_mut();
+                let mut capture_count: c_int = 0;
+                unsafe {
                     pcre_fullinfo(code, extra as *const PcreExtra, ffi::PCRE_INFO_CAPTURECOUNT,
                                   &mut capture_count as *mut c_int as *mut c_void);
-
-                    Ok(Regex {
-                        code: code,
-                        extra: extra,
-                        capture_count: capture_count,
-                    })
                 }
-            }
-        }
-    }
 
-    pub fn capture_count(&self) -> usize {
-        self.capture_count as usize
-    }
-
-    /// Returns the extra block, if one has been created.
-    pub fn extra(&mut self) -> Option<&mut PcreExtra> {
-        unsafe {
-            if self.extra.is_null() {
-                None
-            } else {
-                Some(&mut *(self.extra))
+                Ok(Regex {
+                    code: code,
+                    extra: extra,
+                    capture_count: capture_count,
+                })
             }
         }
     }
@@ -383,30 +300,26 @@ impl Regex {
     /// For compatibility with regex-dfa.
     #[inline]
     pub fn shortest_match(&self, subject: &[u8]) -> Option<(usize, usize)> {
-        self.exec(subject).map(|m| (m.group_start(0), m.group_end(0)))
+        self.exec(subject).map(|m| m.group_span(0))
     }
 
-    #[inline]
-    pub fn matches<'r, 's>(&'r self, subject: &'s [u8]) -> MatchIterator<'r, 's> {
-        self.matches_with_options(subject, 0)
-    }
+    // #[inline]
+    // pub fn matches<'r, 's>(&'r self, subject: &'s [u8]) -> MatchIterator<'r, 's> {
+    //     self.matches_with_options(subject, 0)
+    // }
 
-    #[inline]
-    pub fn matches_with_options<'r, 's>(&'r self, subject: &'s [u8], options: ExecOptions)
-                                        -> MatchIterator<'r, 's> {
-        let ovecsize = (self.capture_count + 1) * 3;
-        MatchIterator {
-            regex: self,
-            subject: subject,
-            offset: 0,
-            options: options.clone(),
-            ovector: vec![0 as c_int; ovecsize as usize]
-        }
-    }
-
-    pub fn study(&mut self) -> bool {
-        self.study_with_options(0)
-    }
+    // #[inline]
+    // pub fn matches_with_options<'r, 's>(&'r self, subject: &'s [u8], options: ExecOptions)
+    //                                     -> MatchIterator<'r, 's> {
+    //     let ovecsize = (self.capture_count + 1) * 3;
+    //     MatchIterator {
+    //         regex: self,
+    //         subject: subject,
+    //         offset: 0,
+    //         options: options.clone(),
+    //         ovector: vec![0 as c_int; ovecsize as usize]
+    //     }
+    // }
 
     pub fn study_with_options(&mut self, options: StudyOptions) -> bool {
         let extra = unsafe {
@@ -437,34 +350,16 @@ impl Drop for Regex {
 }
 
 impl<'a> Match<'a> {
-    /// Returns the start index within the subject string of capture group `n`.
     pub fn group_start(&self, n: usize) -> usize {
         self.partial_ovector[(n * 2) as usize] as usize
     }
 
-    /// Returns the end index within the subject string of capture group `n`.
     pub fn group_end(&self, n: usize) -> usize {
         self.partial_ovector[(n * 2 + 1) as usize] as usize
     }
 
-    /// Returns the length of the substring for capture group `n`.
-    pub fn group_len(&self, n: usize) -> usize {
-        let group_offsets = &self.partial_ovector[((n * 2) as usize)..];
-        (group_offsets[1] - group_offsets[0]) as usize
-    }
-
-    /// Returns the substring for capture group `n` as a slice.
-    #[inline]
-    pub fn group(&'a self, n: usize) -> &'a [u8] {
-        let group_offsets = &self.partial_ovector[((n * 2) as usize)..];
-        let start = group_offsets[0];
-        let end = group_offsets[1];
-        &self.subject[(start as usize)..(end as usize)]
-    }
-
-    /// Returns the number of substrings captured.
-    pub fn string_count(&self) -> usize {
-        self.string_count as usize
+    pub fn group_span(&self, n: usize) -> (usize, usize) {
+        (self.group_start(n), self.group_end(n))
     }
 }
 
