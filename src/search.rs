@@ -6,7 +6,9 @@
 use std::cmp::min;
 use std::path::Path;
 use std::str;
-use regex_dfa::Program as Regex;
+
+//use regex_dfa::Program as Regex;
+use pcre::Regex;
 
 use options::{Casing, Opts};
 

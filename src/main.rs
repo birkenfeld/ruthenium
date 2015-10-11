@@ -17,6 +17,7 @@ mod search;
 mod ignore;
 mod display;
 mod options;
+mod pcre;
 
 use std::cmp::max;
 use std::sync::mpsc::{sync_channel, SyncSender};
