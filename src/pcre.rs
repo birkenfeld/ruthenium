@@ -12,12 +12,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![allow(dead_code)]
+
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::ptr;
 use libc::{c_char, c_int, c_uchar, c_void};
 
-#[allow(dead_code)]
 mod ffi {
     use libc::{c_char, c_int, c_uchar, c_ulong, c_void};
 
