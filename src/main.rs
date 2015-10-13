@@ -6,7 +6,6 @@
 #[macro_use]
 extern crate clap;
 extern crate libc;
-extern crate regex_dfa;
 extern crate walkdir;
 extern crate memmap;
 extern crate scoped_threadpool;
