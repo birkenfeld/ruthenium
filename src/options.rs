@@ -87,7 +87,7 @@ pub struct Opts {
     pub before: usize,
     pub after: usize,
     // others
-    pub workers: u32,
+    pub workers: usize,
 }
 
 // Taken from libtest, there seems to be no better way presently.
@@ -247,7 +247,7 @@ impl Opts {
         }
 
         let workers = m.value_of("workers").and_then(|v| v.parse().ok())
-                                           .unwrap_or(min(4, num_cpus::get())) as u32;
+                                           .unwrap_or(min(4, num_cpus::get()));
 
         Opts {
             // file related

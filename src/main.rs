@@ -8,7 +8,7 @@ extern crate clap;
 extern crate libc;
 extern crate walkdir;
 extern crate memmap;
-extern crate scoped_threadpool;
+extern crate scoped_pool;
 extern crate num_cpus;
 extern crate glob;
 extern crate regex;
@@ -24,7 +24,7 @@ use std::cmp::max;
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::thread;
 use memmap::{Mmap, Protection};
-use scoped_threadpool::Pool;
+use scoped_pool::Pool;
 use walkdir::WalkDirIterator;
 
 use display::DisplayMode;
@@ -41,7 +41,7 @@ use options::Opts;
 /// number of worker threads in a pool to grep individual files.
 fn walk(chan: SyncSender<FileResult>, opts: &Opts) {
     // thread pool for individual file grep worker threads
-    let mut pool = Pool::new(max(opts.workers - 1, 1));
+    let pool = Pool::new(max(opts.workers - 1, 1));
     // create the regex object
     let regex = search::create_rx(&opts);
 
