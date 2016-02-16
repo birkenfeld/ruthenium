@@ -130,7 +130,7 @@ impl Opts {
         let version = format!("v{}", crate_version!());
         // XXX: sort and group the arguments once they are all done
         let app = App::new("Ruthenium")
-            .version(&version)
+            .version(&*version)
             .usage("ru [options] PATTERN [PATH]")
             .about("Recursively search for a pattern, like ack")
             .setting(AppSettings::UnifiedHelpMessage)

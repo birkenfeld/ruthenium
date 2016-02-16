@@ -23,6 +23,6 @@ glob = "*"
 regex = "*"
 
 [dependencies.clap]
-version = "1"
+version = "2"
 default_features = false
 features = []
