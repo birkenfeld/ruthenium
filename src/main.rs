@@ -11,11 +11,13 @@ extern crate memmap;
 extern crate scoped_threadpool;
 extern crate num_cpus;
 extern crate glob;
+extern crate regex;
 
 mod search;
 mod ignore;
 mod display;
 mod options;
+#[cfg(feature = "pcre")]
 mod pcre;
 
 use std::cmp::max;

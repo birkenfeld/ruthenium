@@ -6,7 +6,10 @@
 use std::cmp::min;
 use std::path::Path;
 
+#[cfg(feature = "pcre")]
 use pcre::Regex;
+#[cfg(not(feature = "pcre"))]
+use regex::Regex;
 
 use options::{Casing, Opts};
 
@@ -86,7 +89,7 @@ pub fn create_rx(opts: &Opts) -> Regex {
             pattern = format!("(?i){}", pattern);
         }
     }
-    Regex::from_regex(&pattern).unwrap()
+    Regex::new(&pattern).unwrap()
 }
 
 /// Return normalized path: get rid of leading ./ and make leading // into /.
@@ -176,6 +179,15 @@ impl<'a> Lines<'a> {
     }
 }
 
+#[cfg(feature = "pcre")]
+fn to_rx_type(s: &[u8]) -> Option<&[u8]> { Some(s) }
+
+#[cfg(not(feature = "pcre"))]
+fn to_rx_type(s: &[u8]) -> Option<&str> {
+    use std::str;
+    str::from_utf8(s).ok()
+}
+
 /// Search a single file (represented as a u8 buffer) for matching lines.
 pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult {
     let len = buf.len();
@@ -187,7 +199,7 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
         // if we care for binaries at all
         if opts.do_binaries {
             // XXX: obviously the from_utf8 will fail for binary files
-            if let Some((_, _)) = regex.shortest_match(buf) {
+            if let Some((_, _)) = to_rx_type(buf).and_then(|v| regex.find(v)) {
                 // found a match: create a dummy match object, and
                 // leave it there (we never need more info than
                 // "matched" or "didn't match")
@@ -198,14 +210,16 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
         let mut lines = Lines::new(buf);
         while let Some((lineno, line)) = lines.next() {
             let mut spans = Vec::new();
-            if let Some(span) = regex.shortest_match(line) {
-                let mut searchfrom = span.1;
-                // create a match object for this line (lineno is 1-based)
-                spans.push(span);
-                // search for further matches in this line
-                while let Some((i0, i1)) = regex.shortest_match(&line[searchfrom..]) {
-                    spans.push((searchfrom + i0, searchfrom + i1));
-                    searchfrom += i1;
+            if let Some(line) = to_rx_type(line) {
+                if let Some(span) = regex.find(line) {
+                    let mut searchfrom = span.1;
+                    // create a match object for this line (lineno is 1-based)
+                    spans.push(span);
+                    // search for further matches in this line
+                    while let Some((i0, i1)) = regex.find(&line[searchfrom..]) {
+                        spans.push((searchfrom + i0, searchfrom + i1));
+                        searchfrom += i1;
+                    }
                 }
             }
             if opts.invert != spans.is_empty() {

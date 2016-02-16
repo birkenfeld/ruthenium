@@ -188,7 +188,6 @@ pub type ExecOptions = ffi::exec_options;
 pub type StudyOptions = ffi::study_options;
 
 /// Wrapper for libpcre's `pcre` object (representing a compiled regular expression).
-#[allow(raw_pointer_derive)]
 #[derive(Debug)]
 pub struct Regex {
     code: *const Pcre,
@@ -224,8 +223,7 @@ impl fmt::Display for CompilationError {
 
 impl Regex {
 
-    /// For compatibility with regex-dfa.
-    pub fn from_regex(pattern: &str) -> Result<Regex, CompilationError> {
+    pub fn new(pattern: &str) -> Result<Regex, CompilationError> {
         Regex::compile_with_options(pattern, 0).map(|mut rx| {
             rx.study_with_options(ffi::PCRE_STUDY_JIT_COMPILE);
             rx
@@ -298,9 +296,8 @@ impl Regex {
         }
     }
 
-    /// For compatibility with regex-dfa.
     #[inline]
-    pub fn shortest_match(&self, subject: &[u8]) -> Option<(usize, usize)> {
+    pub fn find(&self, subject: &[u8]) -> Option<(usize, usize)> {
         self.exec(subject).map(|m| m.group_span(0))
     }
 

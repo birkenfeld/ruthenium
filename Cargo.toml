@@ -6,8 +6,12 @@ authors = ["Georg Brandl <georg@python.org>"]
 [[bin]]
 name = "ru"
 
+[features]
+default = []
+pcre = []
+
 [profile.release]
-debug = true
+lto = true
 
 [dependencies]
 libc = "*"
@@ -16,6 +20,7 @@ memmap = "*"
 scoped_threadpool = "*"
 num_cpus = "*"
 glob = "*"
+regex = "*"
 
 [dependencies.clap]
 version = "1"
