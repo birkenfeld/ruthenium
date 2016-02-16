@@ -111,7 +111,9 @@ fn walk(chan: SyncSender<FileResult>, opts: &Opts) {
 ///
 /// Spawns the walker thread and prints the results.
 fn run<D: DisplayMode>(display: &mut D, opts: Opts) {
-    let (w_chan, r_chan) = sync_channel(2 * opts.workers as usize);
+    // The sync_channel has a bound on pending items.  We don't want to
+    // generate results much faster than we can print them.
+    let (w_chan, r_chan) = sync_channel(4 * opts.workers as usize);
     thread::spawn(move || {
         walk(w_chan, &opts);
     });

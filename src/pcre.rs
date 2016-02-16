@@ -301,6 +301,11 @@ impl Regex {
         self.exec(subject).map(|m| m.group_span(0))
     }
 
+    #[inline]
+    pub fn is_match(&self, subject: &[u8]) -> bool {
+        self.exec(subject).is_some()
+    }
+
     // #[inline]
     // pub fn matches<'r, 's>(&'r self, subject: &'s [u8]) -> MatchIterator<'r, 's> {
     //     self.matches_with_options(subject, 0)

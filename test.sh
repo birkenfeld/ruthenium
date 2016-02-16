@@ -9,7 +9,7 @@ run-timed() {
 }
 
 run-grep() {
-  run-timed grep -ri "$@" $NEEDLE tst > /dev/null
+  run-timed grep -E -ri "$@" $NEEDLE tst > /dev/null
 }
 
 run-ag() {
@@ -29,7 +29,7 @@ run-all() {
   run-ru "$@"
 }
 
-cargo build --release || exit 1
+#cargo build --release || exit 1
 
 echo "List matches"
 run-all
