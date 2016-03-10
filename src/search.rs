@@ -130,13 +130,12 @@ fn is_binary(buf: &[u8], len: usize) -> bool {
 struct Lines<'a> {
     buf: &'a [u8],
     lines: Vec<&'a [u8]>,
-    start: usize,
     lineno: usize,
 }
 
 impl<'a> Lines<'a> {
     pub fn new(buf: &[u8]) -> Lines {
-        Lines { buf: buf, lines: Vec::new(), start: 0, lineno: 0 }
+        Lines { buf: buf, lines: Vec::new(), lineno: 0 }
     }
 
     /// Get next line in the main iteration.
@@ -165,15 +164,13 @@ impl<'a> Lines<'a> {
     /// Return false if EOF was reached before given number of lines.
     fn advance(&mut self, need_idx: usize) -> bool {
         while self.lines.len() < need_idx + 1 {
-            if self.start >= self.buf.len() {
+            if self.buf.len() == 0 {
                 return false;
             }
-            let end = self.buf[self.start..].iter()
-                                            .position(|&x| x == b'\n')
-                                            .unwrap_or(self.buf.len() - self.start);
-            let line = &self.buf[self.start..self.start+end];
+            let mut split = self.buf.splitn(2, |&x| x == b'\n');
+            let line = split.next().unwrap();
+            self.buf = split.next().unwrap_or(&[]);
             self.lines.push(line);
-            self.start += end + 1;
         }
         true
     }
