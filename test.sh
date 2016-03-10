@@ -9,7 +9,7 @@ run-timed() {
 }
 
 run-grep() {
-  run-timed grep --color=always -E -ri "$@" $NEEDLE tst > /dev/null
+  run-timed grep --color=always -n -E -ri "$@" $NEEDLE tst > /dev/null
 }
 
 run-ag() {
