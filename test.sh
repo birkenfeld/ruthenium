@@ -9,15 +9,15 @@ run-timed() {
 }
 
 run-grep() {
-  run-timed grep -E -ri "$@" $NEEDLE tst > /dev/null
+  run-timed grep --color=always -E -ri "$@" $NEEDLE tst > /dev/null
 }
 
 run-ag() {
-  run-timed ag "$@" $NEEDLE tst > /dev/null
+  run-timed ag --color "$@" $NEEDLE tst > /dev/null
 }
 
 run-ru() {
-  run-timed target/release/ru "$@" $NEEDLE tst > /dev/null
+  run-timed target/release/ru --color "$@" $NEEDLE tst > /dev/null
 }
 
 run-all() {

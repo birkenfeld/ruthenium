@@ -151,6 +151,7 @@ impl Opts {
             .arg(flag!(follow -f --"follow"))
             .arg(flag!(nofollow / --"nofollow").conflicts_with("follow"))
             .arg(flag!(nocolor / --"nocolor"))
+            .arg(flag!(color / --"color"))
             .arg(flag!(colorlineno / --"color-line-number").takes_value(true))
             .arg(flag!(colorspan / --"color-match").takes_value(true))
             .arg(flag!(colorpath / --"color-path").takes_value(true))
@@ -206,7 +207,9 @@ impl Opts {
         }
 
         let out_to_tty = stdout_isatty();
-        let colors = if !out_to_tty || m.is_present("nocolor") {
+        let colors = if !m.is_present("color") &&
+            (!out_to_tty || m.is_present("nocolor"))
+        {
             Colors::empty()
         } else {
             Colors::from(
