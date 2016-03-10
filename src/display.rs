@@ -9,6 +9,16 @@ use std::usize;
 use search::{FileResult, Match};
 use options::Colors;
 
+macro_rules! w {
+    ($out:expr, $first:expr, $($rest:expr),*) => {
+        let _ = $out.write($first);
+        w!($out, $($rest),*);
+    };
+    ($out:expr, $first:expr) => {
+        let _ = $out.write($first);
+    }
+}
+
 
 /// A trait for printing search results to stdout.
 pub trait DisplayMode {
@@ -25,16 +35,6 @@ pub struct DefaultMode<T: Write> {
     heading: bool,
     is_first: bool,
     out: T,
-}
-
-macro_rules! w {
-    ($out:expr, $first:expr, $($rest:expr),*) => {
-        let _ = $out.write($first);
-        w!($out, $($rest),*);
-    };
-    ($out:expr, $first:expr) => {
-        let _ = $out.write($first);
-    }
 }
 
 impl<T: Write> DefaultMode<T> {
