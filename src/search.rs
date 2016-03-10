@@ -189,7 +189,6 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
         result.is_binary = true;
         // if we care for binaries at all
         if opts.do_binaries {
-            // XXX: obviously the from_utf8 will fail for binary files
             if regex.is_match(buf) {
                 // found a match: create a dummy match object, and
                 // leave it there (we never need more info than
