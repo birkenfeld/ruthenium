@@ -6,7 +6,7 @@
 use std::cmp::min;
 use std::usize;
 
-use libc;
+use atty;
 use clap::{App, AppSettings, Arg};
 use num_cpus;
 
@@ -88,28 +88,6 @@ pub struct Opts {
     pub after: usize,
     // others
     pub workers: usize,
-}
-
-// Taken from libtest, there seems to be no better way presently.
-// There are a few libraries on crates.io, but without Windows support.
-
-#[cfg(unix)]
-fn stdout_isatty() -> bool {
-    unsafe { libc::isatty(libc::STDOUT_FILENO) != 0 }
-}
-#[cfg(windows)]
-fn stdout_isatty() -> bool {
-    const STD_OUTPUT_HANDLE: libc::DWORD = -11i32 as libc::DWORD;
-    extern "system" {
-        fn GetStdHandle(which: libc::DWORD) -> libc::HANDLE;
-        fn GetConsoleMode(hConsoleHandle: libc::HANDLE,
-                          lpMode: libc::LPDWORD) -> libc::BOOL;
-    }
-    unsafe {
-        let handle = GetStdHandle(STD_OUTPUT_HANDLE);
-        let mut out = 0;
-        GetConsoleMode(handle, &mut out) != 0
-    }
 }
 
 /// Somewhat simpler creation of flag Args.
@@ -206,7 +184,7 @@ impl Opts {
             literal = true;
         }
 
-        let out_to_tty = stdout_isatty();
+        let out_to_tty = atty::is();
         let colors = if !m.is_present("color") &&
             (!out_to_tty || m.is_present("nocolor"))
         {

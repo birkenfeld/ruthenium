@@ -15,6 +15,7 @@ lto = true
 
 [dependencies]
 libc = "*"
+atty = "*"
 walkdir = "*"
 memmap = "*"
 scoped-pool = "*"
