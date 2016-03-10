@@ -23,6 +23,7 @@ mod pcre;
 use std::cmp::max;
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::thread;
+use std::io::stdout;
 use memmap::{Mmap, Protection};
 use scoped_pool::Pool;
 use walkdir::WalkDirIterator;
@@ -126,19 +127,22 @@ fn run<D: DisplayMode>(display: &mut D, opts: Opts) {
 fn main() {
     let mut opts = Opts::from_cmdline();
     let colors = opts.colors.take().unwrap();  // guaranteed to be Some()
+    let stdout = stdout();
+    let stdout = stdout.lock();
 
     // determine which display mode we are using
     if opts.only_count {
-        run(&mut display::CountMode::new(colors), opts);
+        run(&mut display::CountMode::new(stdout, colors), opts);
     } else if opts.only_files == Some(true) {
-        run(&mut display::FilesOnlyMode::new(colors, true), opts);
+        run(&mut display::FilesOnlyMode::new(stdout, colors, true), opts);
     } else if opts.only_files == Some(false) {
-        run(&mut display::FilesOnlyMode::new(colors, false), opts);
+        run(&mut display::FilesOnlyMode::new(stdout, colors, false), opts);
     } else if opts.ackmate_format {
-        run(&mut display::AckMateMode::new(), opts);
+        run(&mut display::AckMateMode::new(stdout), opts);
     } else if opts.vimgrep_format {
-        run(&mut display::VimGrepMode::new(), opts);
+        run(&mut display::VimGrepMode::new(stdout), opts);
     } else {
-        run(&mut display::DefaultMode::new(colors, opts.show_break, opts.show_heading), opts);
+        run(&mut display::DefaultMode::new(stdout, colors, opts.show_break,
+                                           opts.show_heading), opts);
     }
 }

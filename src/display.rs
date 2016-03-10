@@ -3,7 +3,7 @@
 // Licensed under the MIT license.
 // ---------------------------------------------------------------------------------------
 
-use std::io::{stdout, Write, Stdout};
+use std::io::{Write, StdoutLock};
 use std::usize;
 
 use search::{FileResult, Match};
@@ -19,12 +19,12 @@ pub trait DisplayMode {
 /// The default mode, used when printing to tty stdout.
 ///
 /// Uses grouping by file names by default and can use colors.  Can print context.
-pub struct DefaultMode {
+pub struct DefaultMode<'a> {
     colors: Colors,
     grouping: bool,
     heading: bool,
     is_first: bool,
-    out: Stdout,
+    out: StdoutLock<'a>,
 }
 
 macro_rules! w {
@@ -37,14 +37,14 @@ macro_rules! w {
     }
 }
 
-impl DefaultMode {
-    pub fn new(colors: Colors, grouping: bool, heading: bool) -> DefaultMode {
+impl<'a> DefaultMode<'a> {
+    pub fn new(out: StdoutLock<'a>, colors: Colors, grouping: bool, heading: bool) -> DefaultMode<'a> {
         DefaultMode {
             colors: colors,
             grouping: grouping,
             heading: heading,
             is_first: true,
-            out: stdout(),
+            out: out,
         }
     }
 
@@ -129,7 +129,7 @@ impl DefaultMode {
     }
 }
 
-impl DisplayMode for DefaultMode {
+impl<'a> DisplayMode for DefaultMode<'a> {
 
     fn print_result(&mut self, res: FileResult) {
         // files with no matches never print anything
@@ -174,21 +174,21 @@ impl DisplayMode for DefaultMode {
 /// The mode used for --ackmate mode.
 ///
 /// No colors, one matched line per line, all spans indicated numerically.
-pub struct AckMateMode {
+pub struct AckMateMode<'a> {
     is_first: bool,
-    out: Stdout,
+    out: StdoutLock<'a>,
 }
 
-impl AckMateMode {
-    pub fn new() -> AckMateMode {
+impl<'a> AckMateMode<'a> {
+    pub fn new(out: StdoutLock<'a>) -> AckMateMode<'a> {
         AckMateMode {
             is_first: true,
-            out: stdout(),
+            out: out,
         }
     }
 }
 
-impl DisplayMode for AckMateMode {
+impl<'a> DisplayMode for AckMateMode<'a> {
     fn print_result(&mut self, res: FileResult) {
         if res.matches.is_empty() {
             return;
@@ -217,19 +217,19 @@ impl DisplayMode for AckMateMode {
 ///
 /// No colors, one match per line (so lines with multiple matches are printed
 /// multiple times).
-pub struct VimGrepMode {
-    out: Stdout
+pub struct VimGrepMode<'a> {
+    out: StdoutLock<'a>,
 }
 
-impl VimGrepMode {
-    pub fn new() -> Self {
+impl<'a> VimGrepMode<'a> {
+    pub fn new(out: StdoutLock<'a>) -> VimGrepMode<'a> {
         VimGrepMode {
-            out: stdout(),
+            out: out,
         }
     }
 }
 
-impl DisplayMode for VimGrepMode {
+impl<'a> DisplayMode for VimGrepMode<'a> {
     fn print_result(&mut self, res: FileResult) {
         if res.matches.is_empty() {
             return;
@@ -251,23 +251,23 @@ impl DisplayMode for VimGrepMode {
 /// The mode used for --files-with-matches and --files-without-matches.
 ///
 /// One file per line, no contents printed.
-pub struct FilesOnlyMode {
+pub struct FilesOnlyMode<'a> {
     colors: Colors,
     need_match: bool,
-    out: Stdout,
+    out: StdoutLock<'a>,
 }
 
-impl FilesOnlyMode {
-    pub fn new(colors: Colors, need_match: bool) -> FilesOnlyMode {
+impl<'a> FilesOnlyMode<'a> {
+    pub fn new(out: StdoutLock<'a>, colors: Colors, need_match: bool) -> FilesOnlyMode<'a> {
         FilesOnlyMode {
             colors: colors,
             need_match: need_match,
-            out: stdout(),
+            out: out,
         }
     }
 }
 
-impl DisplayMode for FilesOnlyMode {
+impl<'a> DisplayMode for FilesOnlyMode<'a> {
     fn print_result(&mut self, res: FileResult) {
         if res.matches.is_empty() != self.need_match {
             w!(self.out, &self.colors.path, &res.fname.as_bytes(), &self.colors.reset, b"\n");
@@ -278,21 +278,21 @@ impl DisplayMode for FilesOnlyMode {
 /// The mode used for --count mode.
 ///
 /// One file per line, followed by match count (not matched line count).
-pub struct CountMode {
+pub struct CountMode<'a> {
     colors: Colors,
-    out: Stdout,
+    out: StdoutLock<'a>,
 }
 
-impl CountMode {
-    pub fn new(colors: Colors) -> CountMode {
+impl<'a> CountMode<'a> {
+    pub fn new(out: StdoutLock<'a>, colors: Colors) -> CountMode<'a> {
         CountMode {
             colors: colors,
-            out: stdout(),
+            out: out,
         }
     }
 }
 
-impl DisplayMode for CountMode {
+impl<'a> DisplayMode for CountMode<'a> {
     fn print_result(&mut self, res: FileResult) {
         if res.matches.is_empty() {
             return;
