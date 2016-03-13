@@ -22,5 +22,4 @@ probably small differences, especially in the handling of ignore files.
 
 ### Regexes
 
-Currently, the only used regex engine is `regex_dfa`.  Regex match spans may not
-be exactly the same as with other engines.
+Currently, the regex engine is either PCRE or `regex`.
