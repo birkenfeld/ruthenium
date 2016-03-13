@@ -38,10 +38,6 @@ mod ffi {
         pub fn pcre_exec(code: *const pcre, extra: *const pcre_extra, subject: *const c_char,
                          length: c_int, startoffset: c_int, options: exec_options,
                          ovector: *mut c_int, ovecsize: c_int) -> c_int;
-        // pub fn pcre_dfa_exec(code: *const pcre, extra: *const pcre_extra,
-        //                      subject: *const c_char, length: c_int, startoffset: c_int,
-        //                      options: exec_options, ovector: *mut c_int, ovecsize: c_int,
-        //                      workspace: *mut c_int, wscount: c_int) -> c_int;
         pub fn pcre_free_study(extra: *mut pcre_extra);
         pub fn pcre_fullinfo(code: *const pcre, extra: *const pcre_extra, what: fullinfo_field,
                              where_: *mut c_void) -> c_int;
@@ -122,28 +118,6 @@ pub unsafe fn pcre_exec(code: *const ffi::pcre, extra: *const ffi::pcre_extra,
         Ok(rc)
     }
 }
-
-/*
-pub unsafe fn pcre_dfa_exec(code: *const ffi::pcre, extra: *const ffi::pcre_extra,
-                            subject: *const c_char, length: c_int, startoffset: c_int,
-                            options: ffi::compile_options,
-                            ovector: *mut c_int, ovecsize: c_int) -> Result<c_int, ()> {
-    assert!(!code.is_null());
-    assert!(ovecsize >= 0 && ovecsize % 3 == 0);
-    let mut workspace = [0 as c_int; 30];
-    let rc = ffi::pcre_dfa_exec(code, extra, subject, length, startoffset, options,
-                                ovector, ovecsize,
-                                workspace.as_mut_ptr() as *mut c_int,
-                                workspace.len() as c_int);
-    if rc == ffi::PCRE_ERROR_NOMATCH {
-        Ok(-1)
-    } else if rc < 0 {
-        Err(())
-    } else {
-        Ok(rc)
-    }
-}
-*/
 
 pub unsafe fn pcre_free(ptr: *mut c_void) {
     ffi::pcre_free(ptr);
@@ -305,24 +279,6 @@ impl Regex {
     pub fn is_match(&self, subject: &[u8]) -> bool {
         self.exec(subject).is_some()
     }
-
-    // #[inline]
-    // pub fn matches<'r, 's>(&'r self, subject: &'s [u8]) -> MatchIterator<'r, 's> {
-    //     self.matches_with_options(subject, 0)
-    // }
-
-    // #[inline]
-    // pub fn matches_with_options<'r, 's>(&'r self, subject: &'s [u8], options: ExecOptions)
-    //                                     -> MatchIterator<'r, 's> {
-    //     let ovecsize = (self.capture_count + 1) * 3;
-    //     MatchIterator {
-    //         regex: self,
-    //         subject: subject,
-    //         offset: 0,
-    //         options: options.clone(),
-    //         ovector: vec![0 as c_int; ovecsize as usize]
-    //     }
-    // }
 
     pub fn study_with_options(&mut self, options: StudyOptions) -> bool {
         let extra = unsafe {
