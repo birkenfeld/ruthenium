@@ -138,19 +138,6 @@ impl<'a> Lines<'a> {
         Lines { buf: buf, lines: Vec::new(), lineno: 0 }
     }
 
-    /// Get next line in the main iteration.
-    pub fn next(&mut self) -> Option<(usize, &'a [u8])> {
-        let lno = self.lineno;
-        self.lineno += 1;
-        if lno < self.lines.len() {
-            Some((lno, self.lines[lno]))
-        } else if self.advance(lno) {
-            Some((lno, self.lines[lno]))
-        } else {
-            None
-        }
-    }
-
     /// Get an arbitrary line as a string.
     pub fn get_line(&mut self, lineno: usize) -> Option<Vec<u8>> {
         if self.advance(lineno) {
@@ -173,6 +160,23 @@ impl<'a> Lines<'a> {
             self.lines.push(line);
         }
         true
+    }
+}
+
+impl<'a> Iterator for Lines<'a> {
+    type Item = (usize, &'a [u8]);
+
+    /// Get next line in the main iteration.
+    fn next(&mut self) -> Option<(usize, &'a [u8])> {
+        let lno = self.lineno;
+        self.lineno += 1;
+        if lno < self.lines.len() {
+            Some((lno, self.lines[lno]))
+        } else if self.advance(lno) {
+            Some((lno, self.lines[lno]))
+        } else {
+            None
+        }
     }
 }
 
