@@ -21,10 +21,7 @@ memmap = "*"
 scoped-pool = "*"
 num_cpus = "*"
 glob = "*"
-
-[dependencies.regex]
-git = "https://github.com/rust-lang-nursery/regex"
-branch = "raw-bytes"
+regex = "*"
 
 [dependencies.clap]
 version = "2"
