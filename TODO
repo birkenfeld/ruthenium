@@ -1,6 +1,7 @@
 TODOs
 =====
 
+* more test/bench infrastructure and cases
 * help texts for command-line options
 * comprehensive test suite and tests against grep, ag, ack
 * more command-line options for ag compatibility
