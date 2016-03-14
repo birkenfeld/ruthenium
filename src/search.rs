@@ -145,24 +145,12 @@ impl<'a> Lines<'a> {
             if self.buf.len() == self.offset {
                 return false;
             }
-            let mut line = match self.buf[self.offset..].iter().position(|&x| x == b'\n') {
-                Some(idx) => {
-                    &self.buf[self.offset..self.offset+idx+1]
-                }
-                None => {
-                    &self.buf[self.offset..self.buf.len()]
-                }
+            let line = match self.buf[self.offset..].iter().position(|&x| x == b'\n') {
+                Some(idx) => &self.buf[self.offset..self.offset+idx+1],
+                None      => &self.buf[self.offset..self.buf.len()],
             };
-            let diff_offset = line.len();
-            // XXX this blows up with matches that include (\r)\n
-            if line.ends_with(b"\n") {
-                line = &line[..line.len()-1];
-            }
-            if line.ends_with(b"\r") {
-                line = &line[..line.len()-1];
-            }
             self.lines.push((self.offset, line));
-            self.offset += diff_offset;
+            self.offset += line.len();
         }
         true
     }

@@ -19,6 +19,12 @@ macro_rules! w {
     }
 }
 
+fn w_maybe_nl<T: Write>(out: &mut T, line: &[u8]) {
+    w!(out, line);
+    if !line.ends_with(b"\n") {
+        w!(out, b"\n");
+    }
+}
 
 /// A trait for printing search results to stdout.
 pub trait DisplayMode {
@@ -55,7 +61,7 @@ impl<T: Write> DefaultMode<T> {
     /// Helper: print a line with matched spans highlighted.
     fn print_line_with_spans(&mut self, m: &Match) {
         if self.colors.empty {
-            w!(self.out, &m.line, b"\n");
+            w_maybe_nl(&mut self.out, &m.line);
         } else {
             let mut pos = 0;
             for &(start, end) in &m.spans {
@@ -65,7 +71,7 @@ impl<T: Write> DefaultMode<T> {
                 w!(self.out, &self.colors.span, &m.line[start..end], &self.colors.reset);
                 pos = end;
             }
-            w!(self.out, &m.line[pos..], b"\n");
+            w_maybe_nl(&mut self.out, &m.line[pos..]);
         }
     }
 
@@ -97,7 +103,7 @@ impl<T: Write> DefaultMode<T> {
                 // as a match line or after-context line
                 if lno > last_printed_line {
                     line_func(self, res, lno, b"-");
-                    w!(self.out, &line, b"\n");
+                    w_maybe_nl(&mut self.out, &line);
                     last_printed_line = lno;
                 }
             }
@@ -122,7 +128,7 @@ impl<T: Write> DefaultMode<T> {
                     break;
                 }
                 line_func(self, res, lno, b"-");
-                w!(self.out, &line, b"\n");
+                w_maybe_nl(&mut self.out, &line);
                 last_printed_line = lno;
             }
         }
@@ -204,9 +210,8 @@ impl<T: Write> DisplayMode for AckMateMode<T> {
                 let spans = m.spans.iter()
                                    .map(|&(s, e)| format!("{} {}", s, e - s))
                                    .collect::<Vec<_>>().join(",");
-                w!(self.out,
-                   &format!("{};{}:", m.lineno, spans).as_bytes(),
-                   &m.line, b"\n");
+                w!(self.out, &format!("{};{}:", m.lineno, spans).as_bytes());
+                w_maybe_nl(&mut self.out, &m.line);
             }
         }
         self.is_first = false;
@@ -239,9 +244,8 @@ impl<T: Write> DisplayMode for VimGrepMode<T> {
         } else {
             for m in res.matches {
                 for s in &m.spans {
-                    w!(self.out,
-                       &format!("{}:{}:{}:", res.fname, m.lineno, s.0 + 1).as_bytes(),
-                       &m.line, b"\n");
+                    w!(self.out, &format!("{}:{}:{}:", res.fname, m.lineno, s.0 + 1).as_bytes());
+                    w_maybe_nl(&mut self.out, &m.line);
                 }
             }
         }
