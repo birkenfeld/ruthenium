@@ -16,6 +16,14 @@ run-ag() {
   run-timed ag --color "$@" $NEEDLE tst > /dev/null
 }
 
+run-ru-lr() {
+  run-timed target/release/ru-line-regex --color "$@" $NEEDLE tst > /dev/null
+}
+
+run-ru-lp() {
+  run-timed target/release/ru-line-pcre --color "$@" $NEEDLE tst > /dev/null
+}
+
 run-ru() {
   run-timed target/release/ru --color "$@" $NEEDLE tst > /dev/null
 }
@@ -25,6 +33,10 @@ run-all() {
   run-grep "$@"
   echo -n "Ag:   "
   run-ag "$@"
+  echo -n "RuLR: "
+  run-ru-lr "$@"
+  echo -n "RuLP: "
+  run-ru-lp "$@"
   echo -n "Ru:   "
   run-ru "$@"
 }

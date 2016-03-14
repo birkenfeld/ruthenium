@@ -29,10 +29,10 @@ pub struct Match {
 }
 
 impl Match {
-    fn new(lineno: usize, line: &[u8], spans: Vec<(usize, usize)>) -> Match {
+    fn new(lineno: usize, line: Vec<u8>, spans: Vec<(usize, usize)>) -> Match {
         Match {
             lineno: lineno,
-            line: line.into(),
+            line: line,
             spans: spans,
             before: Vec::new(),
             after: Vec::new(),
@@ -126,58 +126,116 @@ fn is_binary(buf: &[u8], len: usize) -> bool {
     false
 }
 
-/// Iterator-like struct for collecting lines within a u8 buffer.
+/// Cache for collecting line offsets and slices within a u8 buffer.
 struct Lines<'a> {
     buf: &'a [u8],
-    lines: Vec<&'a [u8]>,
-    lineno: usize,
+    offset: usize,
+    lines: Vec<(usize, &'a [u8])>,
 }
 
 impl<'a> Lines<'a> {
     pub fn new(buf: &[u8]) -> Lines {
-        Lines { buf: buf, lines: Vec::new(), lineno: 0 }
+        Lines { buf: buf, offset: 0, lines: Vec::with_capacity(100) }
     }
 
-    /// Get an arbitrary line as a string.
-    pub fn get_line(&mut self, lineno: usize) -> Option<Vec<u8>> {
-        if self.advance(lineno) {
-            Some(self.lines[lineno].to_vec())
-        } else {
-            None
-        }
-    }
-
-    /// Advance the line detection until we have at least need_idx+1 lines.
+    /// Advance the line detection until we have at least lineno lines.
     /// Return false if EOF was reached before given number of lines.
-    fn advance(&mut self, need_idx: usize) -> bool {
-        while self.lines.len() < need_idx + 1 {
-            if self.buf.len() == 0 {
+    fn advance_to_line(&mut self, lineno: usize) -> bool {
+        while self.lines.len() < lineno + 1 {
+            if self.buf.len() == self.offset {
                 return false;
             }
-            let mut split = self.buf.splitn(2, |&x| x == b'\n');
-            let line = split.next().unwrap();
-            self.buf = split.next().unwrap_or(&[]);
-            self.lines.push(line);
+            let mut line = match self.buf[self.offset..].iter().position(|&x| x == b'\n') {
+                Some(idx) => {
+                    &self.buf[self.offset..self.offset+idx+1]
+                }
+                None => {
+                    &self.buf[self.offset..self.buf.len()]
+                }
+            };
+            let diff_offset = line.len();
+            // XXX this blows up with matches that include (\r)\n
+            if line.ends_with(b"\n") {
+                line = &line[..line.len()-1];
+            }
+            if line.ends_with(b"\r") {
+                line = &line[..line.len()-1];
+            }
+            self.lines.push((self.offset, line));
+            self.offset += diff_offset;
         }
         true
     }
-}
 
-impl<'a> Iterator for Lines<'a> {
-    type Item = (usize, &'a [u8]);
+    /// Advance to a given byte offset in the buffer.
+    fn advance_to_offset(&mut self, offset: usize) {
+        while self.offset < offset {
+            let next_line = self.lines.len();
+            self.advance_to_line(next_line);
+        }
+    }
 
-    /// Get next line in the main iteration.
-    fn next(&mut self) -> Option<(usize, &'a [u8])> {
-        let lno = self.lineno;
-        self.lineno += 1;
-        if lno < self.lines.len() {
-            Some((lno, self.lines[lno]))
-        } else if self.advance(lno) {
-            Some((lno, self.lines[lno]))
+    /// Get line number of offset.
+    pub fn get_lineno(&mut self, offset: usize) -> usize {
+        self.advance_to_offset(offset);
+        for (n, &(o, _)) in self.lines.iter().enumerate().rev() {
+            if o <= offset {
+                return n;
+            }
+        }
+        return 0;
+    }
+
+    /// Get offset of line number.
+    pub fn get_offset(&mut self, lineno: usize) -> usize {
+        if self.advance_to_line(lineno) {
+            self.lines[lineno].0
+        } else {
+            self.buf.len()
+        }
+    }
+
+    /// Get an arbitrary line (maybe beyond end of file) as a string.
+    pub fn get_line(&mut self, lineno: usize) -> Option<Vec<u8>> {
+        if self.advance_to_line(lineno) {
+            Some(self.lines[lineno].1.to_vec())
         } else {
             None
         }
     }
+}
+
+/// Create a line-match for a given line with context lines determined by options.
+fn create_match(lines: &mut Lines, opts: &Opts, lineno: usize) -> Match {
+    let line = lines.get_line(lineno).expect("matched line missing");
+    let mut new_match = Match::new(lineno + 1, line, vec![]);
+    if opts.before > 0 {
+        for lno in lineno.saturating_sub(opts.before)..lineno {
+            new_match.before.push(lines.get_line(lno).unwrap());
+        }
+    }
+    if opts.after > 0 {
+        for lno in lineno+1..lineno+opts.after+1 {
+            if let Some(line) = lines.get_line(lno) {
+                new_match.after.push(line);
+            }
+        }
+    }
+    new_match
+}
+
+/// Add a new match and maybe finish
+macro_rules! new_match {
+    ($result:expr, $lines:expr, $opts:expr, $lineno:expr) => {{
+        if $result.matches.len() >= $opts.max_count {
+            return $result;
+        }
+        let m = create_match(&mut $lines, $opts, $lineno);
+        $result.matches.push(m);
+        if $opts.only_files.is_some() {
+            return $result;
+        }
+    }};
 }
 
 /// Search a single file (represented as a u8 buffer) for matching lines.
@@ -194,50 +252,66 @@ pub fn search(regex: &Regex, opts: &Opts, path: &Path, buf: &[u8]) -> FileResult
                 // found a match: create a dummy match object, and
                 // leave it there (we never need more info than
                 // "matched" or "didn't match")
-                result.matches.push(Match::new(0, &[], Vec::new()));
+                result.matches.push(Match::new(0, "".into(), Vec::new()));
             }
         }
     } else {
         let mut lines = Lines::new(buf);
-        while let Some((lineno, line)) = lines.next() {
-            let mut spans = Vec::new();
-            if let Some(span) = regex.find(line) {
-                let mut searchfrom = span.1;
-                // create a match object for this line (lineno is 1-based)
-                spans.push(span);
-                // search for further matches in this line
-                while let Some((i0, i1)) = regex.find(&line[searchfrom..]) {
-                    spans.push((searchfrom + i0, searchfrom + i1));
-                    searchfrom += i1;
-                }
-            }
-            if opts.invert != spans.is_empty() {
-                // no match
+        let mut match_offset = 0;
+        let mut matched_lineno = !0_usize;  // let's say this is an invalid line number
+
+        while let Some((mut start, mut end)) = regex.find(&buf[match_offset..]) {
+            // back to offsets into buf
+            start += match_offset;
+            end += match_offset;
+
+            // find the line numbers of the match
+            let lineno = lines.get_lineno(start);
+            let lineno_end = lines.get_lineno(end);
+            if lineno != lineno_end {
+                // match spans multiple lines: ignore it and start at the
+                // beginning of the next line
+                match_offset = lines.get_offset(lineno + 1);
                 continue;
-            }
-            let mut m = Match::new(lineno + 1, line, spans);
-
-            // collect "before" context for this match
-            if opts.before > 0 {
-                for lno in lineno.saturating_sub(opts.before)..lineno {
-                    m.before.push(lines.get_line(lno).unwrap());
+            } else if start == end {
+                // are we at the end of the text?
+                if start == buf.len() {
+                    break;
                 }
+                // zero-size match: match this line and go to next
+                match_offset = lines.get_offset(lineno + 1);
+            } else {
+                // start next match where this one ended
+                match_offset = end;
             }
-            // collect "after" context for this match
-            if opts.after > 0 {
-                for lno in lineno+1..lineno+opts.after+1 {
-                    if let Some(line) = lines.get_line(lno) {
-                        m.after.push(line);
+
+            if opts.invert {
+                if lineno != matched_lineno {
+                    // create matches for all inbetween lines:
+                    // - matched_lineno is the last one with a match
+                    // - lineno is the one with this match
+                    for inb_lineno in matched_lineno.wrapping_add(1)..lineno {
+                        new_match!(result, lines, opts, inb_lineno);
                     }
+                    matched_lineno = lineno;
+                }
+            } else {
+                // we have a new matching line?
+                if lineno != matched_lineno {
+                    new_match!(result, lines, opts, lineno);
+                    matched_lineno = lineno;
+                }
+                // add this span to the match for this line
+                if let Some(ref mut m) = result.matches.last_mut() {
+                    let line_offset = lines.get_offset(lineno);
+                    m.spans.push((start - line_offset, end - line_offset));
                 }
             }
-            result.matches.push(m);
-
-            if opts.only_files.is_some() {
-                // need only one match per file for this mode
-                break;
-            } else if result.matches.len() >= opts.max_count {
-                break;
+        }
+        if opts.invert {
+            // create matches for final lines
+            for inb_lineno in matched_lineno.wrapping_add(1)..lines.get_lineno(buf.len())+1 {
+                new_match!(result, lines, opts, inb_lineno);
             }
         }
     }
